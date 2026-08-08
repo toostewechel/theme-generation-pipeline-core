@@ -34,11 +34,15 @@ describe("emitDerivedRadiusCss", () => {
 
   it("emits no literal values — the layer is pure references", () => {
     // Every declaration must reference other custom properties, never a number.
+    // This is the enforcement point for the "runtime calc(), no build-time
+    // radius computation" constraint: any literal digit here — in any
+    // position, not just after whitespace/paren — would mean a number
+    // leaked into the derived layer instead of staying a var() reference.
     const declarations = [...css.matchAll(/^\s*(--[\w-]+):\s*([^;]+);/gm)];
     expect(declarations.length).toBeGreaterThan(0);
     for (const [, name, value] of declarations) {
       expect(value, `${name} must not contain a literal number`).not.toMatch(
-        /(^|[\s(])\d/,
+        /\d/,
       );
     }
   });
