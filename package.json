@@ -3,24 +3,18 @@
   "scripts": {
     "build:tokens": "npx tsx scripts/buildTokens.ts",
     "build:tokens-nd": "npx tsx scripts/buildTokens.ts --no-descriptions",
-    "build:theme": "npx tsx scripts/buildTheme.ts",
-    "generate:theme": "npx tsx scripts/generateTheme.ts",
     "check:token-drift": "npx tsx scripts/checkTokenDrift.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview:fluid": "cd tools/fluid-preview && npm run dev",
-    "preview:radius": "cd tools/radius-preview && npm run dev",
-    "preview:studio": "cd tools/color-studio-tc && npm run dev",
-    "generate:design-md": "npx tsx scripts/generateDesignMd.ts"
+    "preview:radius": "cd tools/radius-preview && npm run dev"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "playwright": "^1.61.0",
     "style-dictionary": "^5.4.2",
     "style-dictionary-utils": "^6.0.1",
     "tsx": "^4.0.0",
-    "vitest": "^2.1.9",
-    "yaml": "^2.9.0"
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "culori": "^4.0.2"
