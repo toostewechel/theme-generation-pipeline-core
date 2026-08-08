@@ -18,14 +18,21 @@
  * its own is unaffected and correctly inherits the finished values from the
  * nearest ancestor that does declare them.
  *
- * This is the same defect, and the same fix, as src/radius/emitDerived.ts.
+ * Must re-declare per scope: the same approach as src/radius/emitDerived.ts.
  *
  * The knob default (--space-scale: 1) is emitted in its OWN :root block,
- * deliberately not in the shared block. [data-density] and a consumer's
- * [data-density="compact"] both have specificity 0,1,0; a default in the
- * shared block would tie with the consumer's rule and win on source order,
- * because generated CSS is imported first. Compact mode would silently do
- * nothing.
+ * deliberately not in the shared block. The shared block is re-declared at
+ * every [data-density] scope — that is its purpose. A default living there
+ * would therefore re-declare --space-scale: 1 on every element carrying a
+ * bare data-density attribute, resetting whatever density it inherited from
+ * an ancestor: "re-resolve spacing here" would silently also mean "reset
+ * density to 1".
+ *
+ * Specificity tie-breaking is NOT the reason, though it looks like it should
+ * be. [data-density] and a consumer's [data-density="compact"] do tie at
+ * 0,1,0, but on a tie the later rule wins and consumer stylesheets load after
+ * generated CSS — so a consumer override survives either layout. Only the
+ * inherited-density reset actually breaks.
  *
  * Depends on the --sp-* primitives, which the token build emits from DTCG
  * sources. This layer performs no unit conversion of its own — values stay

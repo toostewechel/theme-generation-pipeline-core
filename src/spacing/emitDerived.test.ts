@@ -18,12 +18,11 @@ describe("emitDerivedSpacingCss", () => {
   const css = emitDerivedSpacingCss(STEPS);
 
   it("declares the knob default at :root, separate from the derived block", () => {
-    // Not in the shared block: [data-density] and a consumer's
-    // [data-density="compact"] both have specificity 0,1,0. If the default
-    // lived in the shared block it would tie and win on source order —
-    // generated CSS is imported first — silently clobbering every override.
-    // The symptom is "compact mode does nothing", which is very hard to
-    // trace back to a generator decision.
+    // Not in the shared block: that block is re-declared at every
+    // [data-density] scope, so a default living there would re-declare
+    // --space-scale: 1 on every bare data-density element, resetting any
+    // density inherited from an ancestor. See src/spacing/render.test.ts,
+    // which gates the behaviour this structure protects.
     expect(css.trimStart().startsWith(":root {")).toBe(true);
     expect(css).toContain("--space-scale: 1;");
 
@@ -76,5 +75,6 @@ describe("emitDerivedSpacingCss", () => {
     const custom = emitDerivedSpacingCss(STEPS, ".theme");
     expect(custom).toContain(".theme {");
     expect(custom.trimStart().startsWith(":root {")).toBe(true);
+    expect(custom).not.toContain(":root, [data-density] {");
   });
 });
