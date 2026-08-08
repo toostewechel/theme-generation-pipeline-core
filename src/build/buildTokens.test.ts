@@ -91,4 +91,26 @@ describe("emitted tokens.css unit contract", () => {
     // switching silently breaks anywhere but the document root.
     expect(css).toContain(":root, [data-radius-mode] {");
   });
+
+  it("emits the derived spacing layer", () => {
+    expect(css).toContain("--space-scale: 1;");
+    expect(css).toContain("--space-16: calc(var(--sp-16) * var(--space-scale));");
+  });
+
+  it("scopes the derived spacing layer to :root and every [data-density] scope", () => {
+    // Same substitution-site rule as radius: a block emitted only under
+    // :root never re-resolves --space-scale for a nested subtree.
+    expect(css).toContain(":root, [data-density] {");
+  });
+
+  it("derives a --space-N for every sp-N primitive in the source", () => {
+    // Guards against the step list silently falling out of sync with the
+    // Figma export — a new sp-* step must flow through with no code change.
+    const primitives = [...css.matchAll(/^\s*--(sp-\d+):/gm)].map((m) => m[1]);
+    expect(primitives.length).toBeGreaterThan(0);
+    for (const step of primitives) {
+      const n = step.slice("sp-".length);
+      expect(css).toContain(`--space-${n}: calc(var(--${step}) * var(--space-scale));`);
+    }
+  });
 });

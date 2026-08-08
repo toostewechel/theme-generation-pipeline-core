@@ -4,6 +4,7 @@ import { join } from "path";
 import { typographyMixinsFormat } from "../formatters/typographyMixins.js";
 import { buildFluidTypographyMixins } from "../fluid/buildFluidMixins.js";
 import { emitDerivedRadiusCss } from "../radius/emitDerived.js";
+import { emitDerivedSpacingCss } from "../spacing/emitDerived.js";
 import { oklchCssTransform } from "../transforms/oklchColor.js";
 import {
   cssPlatformConfig,
@@ -82,6 +83,31 @@ export async function buildTokens(
   for (const styleName of Object.keys(manifest.styles)) {
     baseFiles.push(...manifest.styles[styleName].map((f) => join(tokensDir, f)));
   }
+
+  // The derived spacing layer's step list is read from the DTCG source rather
+  // than hardcoded, so a step added or renamed in Figma flows through with no
+  // code change. Only `sp-<digits>` qualifies; `size-*` is deliberately
+  // excluded — it feeds sizing-touch-min, an accessibility floor that must not
+  // be scaled by a density knob.
+  const spacingSteps: string[] = [];
+  const dimensionCollection = manifest.collections["primitives-dimension"];
+  if (dimensionCollection) {
+    for (const files of Object.values(dimensionCollection.modes)) {
+      for (const file of files) {
+        const raw = JSON.parse(
+          readFileSync(join(tokensDir, file), "utf-8"),
+        ) as Record<string, unknown>;
+        for (const key of Object.keys(raw)) {
+          if (/^sp-\d+$/.test(key) && !spacingSteps.includes(key)) {
+            spacingSteps.push(key);
+          }
+        }
+      }
+    }
+  }
+  spacingSteps.sort(
+    (a, b) => Number(a.slice("sp-".length)) - Number(b.slice("sp-".length)),
+  );
 
   mkdirSync(cssOutDir, { recursive: true });
   mkdirSync(scssOutDir, { recursive: true });
@@ -192,6 +218,13 @@ export async function buildTokens(
   // selector covers :root *and* every [data-radius-mode] scope, not just
   // :root.
   cssOutput += "\n" + emitDerivedRadiusCss() + "\n";
+
+  // Derived spacing layer — same substitution-site reasoning as radius above;
+  // see src/spacing/emitDerived.ts. Emitted only when the source actually has
+  // sp-* steps, so a token export without them produces no dead block.
+  if (spacingSteps.length > 0) {
+    cssOutput += "\n" + emitDerivedSpacingCss(spacingSteps) + "\n";
+  }
 
   const cssPath = join(cssOutDir, "tokens.css");
   writeFileSync(cssPath, cssOutput, "utf-8");
