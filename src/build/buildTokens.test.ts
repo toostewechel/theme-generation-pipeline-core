@@ -75,4 +75,12 @@ describe("emitted tokens.css unit contract", () => {
       expect(css).toContain(`[data-radius-mode='${mode}']`);
     }
   });
+
+  it("emits the derived radius layer", () => {
+    expect(css).toContain(
+      "--radius-base: calc(var(--radius-unit) * var(--radius-intensity));",
+    );
+    expect(css).toContain("--radius-adaptive-md:");
+    expect(css).toContain("--radius-geometric-md:");
+  });
 });

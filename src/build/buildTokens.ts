@@ -3,6 +3,7 @@ import { readFileSync, mkdirSync, writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 import { typographyMixinsFormat } from "../formatters/typographyMixins.js";
 import { buildFluidTypographyMixins } from "../fluid/buildFluidMixins.js";
+import { emitDerivedRadiusCss } from "../radius/emitDerived.js";
 import { oklchCssTransform } from "../transforms/oklchColor.js";
 import {
   cssPlatformConfig,
@@ -185,6 +186,10 @@ export async function buildTokens(
     typographyStylesPath: join(tokensDir, "typography.styles.tokens.json"),
     outputPath: fluidMixinsPath,
   });
+
+  // Derived radius layer — see src/radius/emitDerived.ts for why this is
+  // emitted once rather than per mode.
+  cssOutput += "\n" + emitDerivedRadiusCss() + "\n";
 
   const cssPath = join(cssOutDir, "tokens.css");
   writeFileSync(cssPath, cssOutput, "utf-8");
