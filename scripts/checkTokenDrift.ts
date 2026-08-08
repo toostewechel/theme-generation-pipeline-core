@@ -6,7 +6,7 @@ import {
   namesAt,
   type FileReader,
   type NameSource,
-} from "../src/engine/token-drift.js";
+} from "../src/drift/token-drift.js";
 
 const TOKENS_DIR = "src/tokens";
 
