@@ -48,9 +48,14 @@ The passes, in output order:
 
 Two consequences of that shape:
 
-- **`light` colour and `default` radius live in `:root`**, not behind their own
-  attribute selectors, so a consumer that sets no attributes still gets a
-  complete, working theme.
+- **`:root` carries a working default theme.** `color` light and `radius` default
+  are folded into the base pass, so a consumer that sets no attributes still gets a
+  complete stylesheet. Light colour gets no selector of its own; `default` radius
+  does, because the radius loop runs over all four modes unconditionally — so
+  `--radius-intensity: 1` is declared twice, in `:root` and again in
+  `[data-radius-mode='default']`. Do not "clean up" that duplicate: `:root` matches
+  only the root element, so the selector is what lets a subtree nested inside
+  `[data-radius-mode='pill']` reset itself back to default.
 - **Mode passes are sourced wide and filtered narrow.** They load the base
   files so `{token}` references resolve, then filter the emitted output down to
   the mode's own tokens. That is why the dark block is 77 declarations — the
@@ -140,7 +145,7 @@ Every `dimension` token is emitted in `rem`, converted from its authored `px` va
 | `$description` | Output | Used for |
 |---|---|---|
 | *(none)* | `rem` | sizes, spacing, radius primitives |
-| `"unitless"` | bare number | `--radius-scale-*`, `--radius-intensity` |
+| `"unitless"` | bare number | `--radius-scale-*`, `--radius-intensity`, `--color-state-*-intensity`, `--color-state-disabled-opacity` |
 | `"em"` | `em` | `--font-letter-spacing-*` |
 
 `$description` carries the unit override because DTCG has no per-token unit
