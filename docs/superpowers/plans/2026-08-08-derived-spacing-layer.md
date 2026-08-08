@@ -55,12 +55,11 @@ describe("emitDerivedSpacingCss", () => {
   const css = emitDerivedSpacingCss(STEPS);
 
   it("declares the knob default at :root, separate from the derived block", () => {
-    // Not in the shared block: [data-density] and a consumer's
-    // [data-density="compact"] both have specificity 0,1,0. If the default
-    // lived in the shared block it would tie and win on source order —
-    // generated CSS is imported first — silently clobbering every override.
-    // The symptom is "compact mode does nothing", which is very hard to
-    // trace back to a generator decision.
+    // Not in the shared block: that block is re-declared at every
+    // [data-density] scope, so a default living there would re-declare
+    // --space-scale: 1 on every bare data-density element, resetting any
+    // density inherited from an ancestor. See src/spacing/render.test.ts,
+    // which gates the behaviour this structure protects.
     expect(css.trimStart().startsWith(":root {")).toBe(true);
     expect(css).toContain("--space-scale: 1;");
 
@@ -150,11 +149,18 @@ Create `src/spacing/emitDerived.ts`:
  * This is the same defect, and the same fix, as src/radius/emitDerived.ts.
  *
  * The knob default (--space-scale: 1) is emitted in its OWN :root block,
- * deliberately not in the shared block. [data-density] and a consumer's
- * [data-density="compact"] both have specificity 0,1,0; a default in the
- * shared block would tie with the consumer's rule and win on source order,
- * because generated CSS is imported first. Compact mode would silently do
- * nothing.
+ * deliberately not in the shared block. The shared block is re-declared at
+ * every [data-density] scope — that is its purpose. A default living there
+ * would therefore re-declare --space-scale: 1 on every element carrying a
+ * bare data-density attribute, resetting whatever density it inherited from
+ * an ancestor: "re-resolve spacing here" would silently also mean "reset
+ * density to 1".
+ *
+ * Specificity tie-breaking is NOT the reason, though it looks like it should
+ * be. [data-density] and a consumer's [data-density="compact"] do tie at
+ * 0,1,0, but on a tie the later rule wins and consumer stylesheets load after
+ * generated CSS — so a consumer override survives either layout. Only the
+ * inherited-density reset actually breaks.
  *
  * Depends on the --sp-* primitives, which the token build emits from DTCG
  * sources. This layer performs no unit conversion of its own — values stay
@@ -452,6 +458,10 @@ ${css}
   <div data-density style="--space-scale: 0.8">
     <div data-density style="--space-scale: 1"><div class="pad" id="resetInDense">x</div></div>
   </div>
+  <div data-density style="--space-scale: 0.8">
+    <div data-density><div class="pad" id="bareInsideDense">x</div></div>
+  </div>
+  <div data-density="compact"><div class="pad" id="inCompact">x</div></div>
 </body></html>`);
 }, 120_000);
 
@@ -485,19 +495,22 @@ describe("spacing density (rendered)", () => {
     await expect(padding("#resetInDense")).resolves.toBe("16px");
   });
 
-  it("lets a consumer stylesheet override the knob on the document root", async () => {
-    // --space-scale: 1 ships in its own :root block precisely so this works.
-    // [data-density] and [data-density='compact'] tie at specificity 0,1,0;
-    // if the default lived in the shared block it would win on source order
-    // (generated CSS is imported first) and compact mode would do nothing.
-    await page.evaluate(() =>
-      document.documentElement.setAttribute("data-density", "compact"),
-    );
-    const compact = await padding("#bare");
-    await page.evaluate(() =>
-      document.documentElement.removeAttribute("data-density"),
-    );
-    expect(compact).toBe("12.8px");
+  it("keeps an ancestor's density through a BARE nested [data-density] scope", async () => {
+    // This is the gate on --space-scale: 1 living in its own :root block.
+    // Folded into the shared block, that block re-declares --space-scale: 1
+    // on every bare data-density element, resetting the inherited 0.8 and
+    // rendering 16px here. Verified against both layouts in Chromium.
+    //
+    // Note a consumer-override test does NOT gate this: on a specificity tie
+    // the later rule wins and consumer CSS loads after generated CSS, so an
+    // override survives either layout. This case is the one that breaks.
+    await expect(padding("#bareInsideDense")).resolves.toBe("12.8px");
+  });
+
+  it("honours a consumer stylesheet's density mode", async () => {
+    // Not a gate on the block split (see above) — this asserts the public
+    // API works as documented for the [data-density='compact'] pattern.
+    await expect(padding("#inCompact")).resolves.toBe("12.8px");
   });
 });
 ```
@@ -505,14 +518,23 @@ describe("spacing density (rendered)", () => {
 - [ ] **Step 5: Run the test to verify it passes**
 
 Run: `npx vitest run src/spacing/render.test.ts`
-Expected: PASS, 4 tests.
+Expected: PASS, 5 tests.
 
 If Chromium is missing the helper throws with install instructions; run `npx playwright install chromium` and retry.
 
-- [ ] **Step 6: Prove the gate actually gates**
+- [ ] **Step 6: Prove the gate actually gates — two mutations**
 
-Temporarily change the default selector in `src/spacing/emitDerived.ts` from `":root, [data-density]"` to `":root"`, then run `npx vitest run src/spacing/render.test.ts`.
-Expected: the nested-density and consumer-override tests go RED. **Revert the change** and re-run to confirm green. A gate that cannot fail is not a gate.
+A gate that cannot fail is not a gate. Run both mutations, confirming the named tests go RED, and **revert after each**.
+
+*Mutation A — drop the subtree scope.* Change the default selector in `src/spacing/emitDerived.ts` from `":root, [data-density]"` to `":root"`.
+Run: `npx vitest run src/spacing/render.test.ts`
+Expected RED: the nested-density test, the bare-nested-scope test, and the consumer-mode test. Revert.
+
+*Mutation B — fold the knob into the shared block.* Move `--space-scale: 1` out of its own `:root` block and into the `:root, [data-density]` block.
+Run: `npx vitest run src/spacing/render.test.ts`
+Expected RED: **the bare-nested-scope test only** — it renders `16px` instead of `12.8px`. Every other test still passes, which is exactly why that case is the gate on the block split. Revert.
+
+If Mutation B leaves the suite green, the gate is not doing its job — stop and report, do not proceed.
 
 - [ ] **Step 7: Run the full suite**
 
@@ -672,10 +694,20 @@ finished value, so overriding the knob deeper down does nothing. This is the
 same trap documented at length under Radius, and `src/spacing/render.test.ts`
 is the gate that catches it.
 
-**`--space-scale: 1` sits in its own `:root` block.** `[data-density]` and a
-consumer's `[data-density="compact"]` both have specificity 0,1,0. A default in
-the shared block would tie and win on source order — generated CSS is imported
-first — so every consumer override would silently do nothing.
+**`--space-scale: 1` sits in its own `:root` block.** The derived block is
+re-declared at every `[data-density]` scope, so a default living there would
+re-declare `--space-scale: 1` on every element carrying a bare `data-density`,
+resetting whatever density it inherited from an ancestor:
+
+```html
+<div data-density style="--space-scale: 0.8">
+  <div data-density>          <!-- inherits 0.8 — would reset to 1 -->
+```
+
+Specificity is not the reason, though it looks like it should be.
+`[data-density]` and a consumer's `[data-density="compact"]` do tie at 0,1,0,
+but on a tie the later rule wins and consumer CSS loads after generated CSS,
+so an override survives either way.
 
 The step list is read from the `primitives-dimension` collection at build time
 rather than hardcoded, so a step added or renamed in Figma flows through with

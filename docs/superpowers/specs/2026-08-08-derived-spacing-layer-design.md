@@ -140,11 +140,26 @@ radius block is irrelevant; the two emit disjoint property names.
 Two details are load-bearing:
 
 **`--space-scale: 1` sits in its own `:root` block, deliberately not in the
-shared block.** `[data-density]` and a consumer's `[data-density="compact"]`
-both have specificity 0,1,0. If the default lived in the shared block, it would
-tie with the consumer's rule and win on source order, because generated CSS is
-imported first. The symptom would be "compact mode does nothing" — silent, and
-hard to trace back to a generator decision.
+shared block.** The shared block is re-declared at *every* `[data-density]`
+scope — that is the whole point of it. If the knob default lived there, every
+element carrying a bare `data-density` would re-declare `--space-scale: 1` on
+itself, resetting any density inherited from an ancestor. "Re-resolve spacing
+at this scope" would silently also mean "reset density to 1".
+
+Verified in Chromium against both layouts:
+
+| | own `:root` block | folded into shared block |
+|---|---|---|
+| `[data-density="compact"]` | 12.8px | 12.8px |
+| bare `data-density` nested inside compact | 12.8px | **16px** |
+| bare `data-density` nested inside inline `0.5` | 8px | **16px** |
+
+Note what is *not* the reason. Specificity tie-breaking does not enter into it:
+`[data-density]` and a consumer's `[data-density="compact"]` do tie at 0,1,0,
+but on a tie the *later* rule wins, and a consumer stylesheet loads after the
+generated one — so a consumer override survives in both layouts (row 1). An
+earlier draft of this spec had that backwards and cited the tie as the
+justification; the real defect is the inherited-density reset in rows 2 and 3.
 
 **`--sp-0` is emitted as `0rem`, not `0`,** so `calc(0rem * var(--space-scale))`
 stays valid. The unit contract already guarantees this; no special-casing needed
@@ -181,9 +196,13 @@ builds the real stylesheet, loads it in Chromium, and asserts on
    `12.8px`. This is the direct analogue of the radius regression: without the
    `[data-density]` half of the selector it returns `16px` — textually perfect
    output, behaviourally dead.
-3. `[data-density="compact"] { --space-scale: .8 }`, authored in a stylesheet
-   after `tokens.css` and applied to `<html>`, still wins. This fails if
-   `--space-scale: 1` is ever moved into the shared block.
+3. A **bare** `<div data-density>` nested inside a scaled ancestor keeps the
+   ancestor's density rather than resetting to 1. This is the case that fails
+   if `--space-scale: 1` is ever folded into the shared block — it renders
+   16px instead of 12.8px. A consumer-override test does *not* gate that
+   decision, because the override survives either layout.
+4. A deeper scope can still deliberately reset density by declaring its own
+   `--space-scale`.
 
 The `launchChromium` helper is currently private to `src/radius/render.test.ts`.
 Implementation should lift it into a shared test helper rather than copy it —
