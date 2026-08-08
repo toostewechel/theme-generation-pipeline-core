@@ -11,12 +11,14 @@ npm run build:tokens     # → dist/css/tokens.css, dist/scss/*.scss
 npm test
 ```
 
-`npm test` includes a **rendering gate** (`src/radius/render.test.ts`) that loads the
-built stylesheet in headless Chromium and asserts on `getComputedStyle`. It uses
-Playwright's bundled browser if present and otherwise falls back to a system
-Chrome/Chromium/Brave/Edge; if it finds neither it fails with instructions to run
-`npx playwright install chromium`. See [Radius](#radius) for why a text-only test
-suite was not enough.
+`npm test` includes two **rendering gates** (`src/radius/render.test.ts`,
+`src/spacing/render.test.ts`) that load the built stylesheet in headless
+Chromium and assert on `getComputedStyle`, one per derived layer, guarding the
+same class of custom-property cascade defect in each. They use Playwright's
+bundled browser if present and otherwise fall back to a system
+Chrome/Chromium/Brave/Edge; if neither is found they fail with instructions to
+run `npx playwright install chromium`. See [Radius](#radius) for why a
+text-only test suite was not enough.
 
 Preview tools are separate Vite apps with their own dependencies, so each needs
 its own install before its first run:
@@ -139,7 +141,7 @@ Three files come out:
 
 | File | Contents |
 |---|---|
-| `dist/css/tokens.css` | All custom properties: `:root` first, then one block per declared mode, then the derived radius block. Which mode blocks appear depends entirely on what the manifest declares |
+| `dist/css/tokens.css` | All custom properties: `:root` first, then one block per declared mode, then the derived radius block, then the derived spacing block. Which mode blocks appear depends entirely on what the manifest declares |
 | `dist/scss/typography-mixins.scss` | One `@mixin` per composite typography token, all values `var()` references |
 | `dist/scss/fluid-typography-mixins.scss` | The same mixins with `clamp()` font-sizes and unitless line-heights |
 
