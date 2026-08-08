@@ -12,33 +12,12 @@
  * `getComputedStyle`. It is the only gate here that can catch that class of defect.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { chromium, type Browser, type Page } from "playwright";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "fs";
+import type { Browser, Page } from "playwright";
+import { mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { buildTokens } from "../build/buildTokens.js";
-
-/** System Chromium builds to fall back on when Playwright's own is not installed. */
-const SYSTEM_CHROMIUM = [
-  "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  "/Applications/Chromium.app/Contents/MacOS/Chromium",
-  "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-];
-
-async function launchChromium(): Promise<Browser> {
-  try {
-    return await chromium.launch();
-  } catch {
-    const found = SYSTEM_CHROMIUM.find((p) => existsSync(p));
-    if (found) return await chromium.launch({ executablePath: found });
-    throw new Error(
-      "No Chromium available for the rendering gate.\n" +
-        "Install Playwright's browser with:  npx playwright install chromium\n" +
-        "(or install Chrome/Chromium/Brave/Edge in /Applications).",
-    );
-  }
-}
+import { launchChromium } from "../test-support/launchChromium.js";
 
 let browser: Browser;
 let page: Page;
