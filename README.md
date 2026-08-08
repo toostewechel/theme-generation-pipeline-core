@@ -36,46 +36,89 @@ npm run preview:radius   # radius scale configurator
 per mode, then concatenates the results into one stylesheet.
 
 The separation exists because **token names repeat across the modes of a
-collection**. `color.light.tokens.json` and `color.dark.tokens.json` define the
-same 77 names; all four radius mode files define `radius-intensity`. A single
-Style Dictionary pass over every file would collide on those names and the
-last file loaded would win. So each mode gets its own pass, sourced from the
-shared base files plus that one mode's file, emitted under its own selector,
-and the fragments are joined into `dist/css/tokens.css`. The per-pass temp
-files are deleted afterwards.
+collection**. A light and a dark colour file define the same semantic names;
+every radius mode file defines `radius-intensity`. A single Style Dictionary
+pass over every file would collide on those names and the last file loaded
+would win. So each mode gets its own pass, sourced from the shared base files
+plus that one mode's file, emitted under its own selector, and the fragments
+are joined into `dist/css/tokens.css`. The per-pass temp files are deleted
+afterwards.
 
-The passes, in output order:
+Two rules govern every pass:
 
-| Pass | Selector | Sources | Output filtered to |
-|---|---|---|---|
-| Base | `:root` | every single-mode collection, both `styles` files, `color` light, `radius` default | everything |
-| Dark colour | `[data-color-mode='dark']` | base + `color.dark` | tokens from `color.dark.tokens.json` |
-| Radius × 4 | `[data-radius-mode='<mode>']` | base + `radius.<mode>` | tokens from `radius.<mode>.tokens.json` |
-| Derived radius | `:root, [data-radius-mode]` | not a Style Dictionary pass — see [Radius](#radius) | — |
+- **Single-mode collections are folded into `:root`.** Whatever they are called,
+  a collection with one mode has nothing to collide with, so it needs no selector.
+- **Mode passes are sourced wide and filtered narrow.** They load the base files
+  so `{token}` references resolve, then filter the emitted output down to the
+  mode's own tokens — so a dark block carries the semantic layer only, not a
+  second copy of the primitive palette it references.
 
-Two consequences of that shape:
+### What the build recognises
 
-- **`:root` carries a working default theme.** `color` light and `radius` default
-  are folded into the base pass, so a consumer that sets no attributes still gets a
-  complete stylesheet. Light colour gets no selector of its own; `default` radius
-  does, because the radius loop runs over all four modes unconditionally — so
-  `--radius-intensity: 1` is declared twice, in `:root` and again in
-  `[data-radius-mode='default']`. Do not "clean up" that duplicate: `:root`
-  matches only the root element, so `[data-radius-mode='default']` is what lets
-  a subtree nested inside `[data-radius-mode='pill']` reset itself back to
-  default. This genuinely matters, not just in theory: the derived radius layer
-  (see [Radius](#radius)) is re-declared on every `[data-radius-mode]` element,
-  including ones set to `default`, and it substitutes whatever
-  `--radius-intensity` is in scope on that same element. Delete the `default`
-  duplicate and a nested `[data-radius-mode='default']` subtree would have no
-  `--radius-intensity` of its own to substitute — it would inherit `pill`'s
-  `9999` instead of resetting to `1`, and every `--radius-adaptive-*` /
-  `--radius-geometric-*` value in that subtree would follow.
-- **Mode passes are sourced wide and filtered narrow.** They load the base
-  files so `{token}` references resolve, then filter the emitted output down to
-  the mode's own tokens. That is why the dark block is 77 declarations — the
-  semantic colour layer only — rather than a second copy of the 130-swatch
-  primitive palette.
+Token files are theme-dependent: one theme may ship light only, another light
+and dark, another a different set of radius modes. The build adapts to what the
+manifest declares, but the collection names, the mode names, and the file naming
+are **fixed conventions** rather than free-form:
+
+| Collection | Selector emitted | Modes recognised | Folded into `:root` | Expected filename |
+|---|---|---|---|---|
+| `color` | `[data-color-mode='<mode>']` | `light`, `dark` | `light` | `color.<mode>.tokens.json` |
+| `radius` | `[data-radius-mode='<mode>']` | `sharp`, `default`, `rounded`, `pill` | `default` | `radius.<mode>.tokens.json` |
+| `border` | `[data-border-mode='<mode>']` | `default`, `bold` | `default` | `border.<mode>.tokens.json` |
+| anything else | none | — | all of them | any |
+
+Everything is optional. A light-only theme gives `color` a single mode and gets a
+complete `:root` with no `[data-color-mode]` block at all. A theme with no radius
+modes emits no `[data-radius-mode]` blocks. Declaring a `border` collection
+activates that path; omitting it — as the current manifest does — emits nothing.
+
+Note the asymmetry in how a mode reaches `:root`: the folded-in mode (`light`,
+`default`) is chosen by **name**, not by position. Renaming a light-mode file to
+anything else removes the default theme from `:root` even if the file is otherwise
+valid.
+
+**Ways a theme's files can go missing.** All of the following were confirmed by
+running the build against modified manifests. Two fail silently, one fails loudly
+but cryptically — so check the built CSS after swapping a theme in.
+
+1. **Silent — an unrecognised mode name in a recognised collection.** Give `color`
+   modes named `day` and `night` and it is treated as multi-mode, but neither
+   matches `light` or `dark`. Neither file reaches the output: the semantic colour
+   layer disappears and no `[data-color-mode]` block is emitted. The trap is that
+   this *looks* half-working, because `primitives-color` is a separate single-mode
+   collection and still emits — you get 130 `--color-*` custom properties instead
+   of 207, all of them raw swatches with the entire semantic layer missing.
+2. **Silent — an extra mode in a recognised collection.** A third `color` mode such
+   as `high-contrast`, or a fifth radius mode, is dropped. The output is
+   byte-identical to one that never declared it.
+3. **Silent — a multi-mode collection that isn't `color`, `radius`, or `border`.**
+   An `elevation` collection with `flat` and `raised` modes falls to the
+   "anything else" row, so both files load into the `:root` pass and collide:
+   the name is declared once, with the last-loaded file's value.
+4. **Loud but cryptic — a filename that doesn't match the convention.** A mode pass
+   filters its output by file path, so a `pill` mode pointing at `radius-pill.json`
+   matches nothing, Style Dictionary writes no fragment, and the build dies on the
+   missing temp file: `ENOENT ... _temp_radius_pill.css`. If you see an ENOENT on a
+   `_temp_*` file, a mode's filename does not match the convention in the table
+   above.
+
+Supporting a new collection or mode name means editing the collection dispatch and
+the mode lists in `src/build/buildTokens.ts` — they are short, adjacent, and
+deliberately explicit rather than inferred.
+
+### The `default` radius duplicate is load-bearing
+
+Because `radius` `default` is folded into `:root` *and* the radius loop also emits
+it as its own block, `--radius-intensity` for the default mode is declared twice.
+Do not "clean up" that duplicate. `:root` matches only the root element, so
+`[data-radius-mode='default']` is what lets a subtree nested inside another mode
+reset itself. This matters concretely: the derived radius layer (see
+[Radius](#radius)) is re-declared on every `[data-radius-mode]` element, including
+ones set to `default`, and substitutes whatever `--radius-intensity` is in scope on
+that same element. Delete the duplicate and a nested `[data-radius-mode='default']`
+subtree would have no `--radius-intensity` of its own — it would inherit the
+ancestor mode's value instead of resetting, and every `--radius-adaptive-*` /
+`--radius-geometric-*` value in that subtree would follow.
 
 `outputReferences: true` is on for every pass, so semantic tokens emit as
 `var()` chains rather than flattened values (`--spacing-layout-stack-md:
@@ -96,13 +139,9 @@ Three files come out:
 
 | File | Contents |
 |---|---|
-| `dist/css/tokens.css` | All custom properties: `:root`, `[data-color-mode='dark']`, four `[data-radius-mode='…']` blocks, then the derived radius `:root, [data-radius-mode]` block |
+| `dist/css/tokens.css` | All custom properties: `:root` first, then one block per declared mode, then the derived radius block. Which mode blocks appear depends entirely on what the manifest declares |
 | `dist/scss/typography-mixins.scss` | One `@mixin` per composite typography token, all values `var()` references |
 | `dist/scss/fluid-typography-mixins.scss` | The same mixins with `clamp()` font-sizes and unitless line-heights |
-
-`buildTokens.ts` also carries a code path for a `border` collection with
-`default`/`bold` modes. The manifest declares no such collection, so that path
-emits nothing today; border modes are latent, not a shipping feature.
 
 `scripts/buildTokens.ts` is an 18-line CLI wrapper — it parses
 `--no-descriptions`, prints the output paths, and sets the exit code. All build
