@@ -4,38 +4,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a design token transformation pipeline that converts design tokens into platform-specific code outputs using Style Dictionary v5 and style-dictionary-utils.
+Transforms DTCG design tokens into CSS custom properties and SCSS mixins using
+Style Dictionary v5.
+
+**Read [README.md](README.md) first** — it is the canonical description of the
+pipeline, token architecture, the dimension unit contract, and the radius and fluid
+typography systems. Do not duplicate that content here; update the README instead.
 
 ## Commands
 
 ```bash
 npm install              # Install dependencies
-npm run build:tokens     # Build CSS tokens to dist/css/
+npm run build:tokens     # Build CSS + SCSS to dist/
+npm run build:tokens-nd  # Same, without $description comments
+npm run check:token-drift -- [--base <ref>] [--head <ref>] [--json]
+npm test                 # Vitest
+npm run preview:fluid    # Fluid typography configurator
+npm run preview:radius   # Radius scale configurator
 ```
 
-## Token Architecture
+## Conventions
 
-### Token Format
-Tokens use the DTCG (Design Tokens Community Group) format with `$type` and `$value` properties. Token references use curly brace syntax: `{token-name}`.
-
-### Token Organization (src/tokens/)
-
-**Manifest Structure** (`manifest.json`):
-- Defines collections and their modes
-- Each collection can have multiple mode files
-
-**Collections**:
-- `primitives-color`: Base color palette (neutral, brand, semantic colors like green/amber/red/blue, alpha variants)
-- `color`: Semantic color tokens with `light` and `dark` modes that reference primitives
-- `primitives-font`: Base typography values
-- `typography`: Composite typography tokens referencing font primitives
-- `primitives-dimension`: Base spacing/sizing values
-- `dimension`: Semantic dimension tokens
-- `primitives-radius` / `radius`: Border radius with modes: sharp, default, rounded, pill
-
-### Token Naming Conventions
-- Primitives: `{category}-{scale}` (e.g., `color-neutral-500`, `font-size-1300`)
-- Semantic: `{category}-{context}-{variant}` (e.g., `color-background-surface-default`, `color-text-emphasis`)
-
-### Color Value Format
-Primitive colors use sRGB colorSpace with normalized component arrays (0-1 range), optionally with alpha.
+- **ESM with `.js` import specifiers** even for `.ts` sources: `import { x } from "./foo.js"`.
+- **Never add the `size/rem` transform** to `src/transforms/cssPlatform.ts`. It silently
+  disables px→rem conversion for every dimension token. See the README's unit contract
+  section and the guard test in `src/transforms/cssPlatform.test.ts`.
+- **Colour tokens are static inputs.** This repo has no colour generator.
+- **Shared modules live in `src/`; preview tools import them via the `@project` Vite
+  alias.** Never copy a module into `tools/` — that is how the fluid clamp math drifted.
+- Tests live beside their source as `*.test.ts` and run via `npm test`.

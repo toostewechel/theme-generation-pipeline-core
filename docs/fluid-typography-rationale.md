@@ -105,11 +105,13 @@ This is **only used by the preview tool** to render the specimen with the correc
 
 ### 7. Standalone preview tool
 
-The preview tool lives in `tools/fluid-preview/` with its own `package.json` and Vite config. It's fully independent from the build pipeline because:
+The preview tool lives in `tools/fluid-preview/` with its own `package.json` and Vite config. It installs and runs independently of the build pipeline because:
 
 - The main project has no dev server — adding one would pollute the token pipeline's dependency footprint
 - Designers/design engineers can use it without understanding Style Dictionary
 - It can be run, shared, or deployed independently
+
+Its dependencies are separate, but its *math* is not: the preview imports `generateClamp.ts` and `resolveConfig.ts` from `src/fluid/` through the `@project` Vite alias, so the specimen on screen and the emitted `clamp()` cannot drift apart.
 
 ## The Clamp Formula
 
@@ -138,18 +140,18 @@ src/
   fluid-typography.config.json    # Fluid scale definition
   fluid/
     generateClamp.ts              # Pure clamp() formula
-    resolveConfig.ts              # Token ref → px resolution
+    resolveConfig.ts              # Token ref → px resolution (pure)
+    loadConfig.ts                 # Reads config + primitives, calls resolveConfig
     buildFluidMixins.ts           # SCSS generation + validation
-scripts/
-  buildTokens.ts                  # Calls buildFluidMixins after Style Dictionary
+  build/
+    buildTokens.ts                # Calls buildFluidMixins after Style Dictionary
 tools/
   fluid-preview/
     public/fonts/                 # Drop .woff2 files here
     src/
       fonts.css                   # @font-face declarations
-      main.ts                     # App entry
-      clamp.ts                    # Client-side clamp math
-      resolveConfig.ts            # Browser-side token resolution
+      main.ts                     # App entry — imports generateClamp.ts and
+                                  #   resolveConfig.ts from src/fluid via @project
       styles.css                  # Preview UI styles
     index.html
     package.json
