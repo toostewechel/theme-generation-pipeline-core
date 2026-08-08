@@ -11,6 +11,13 @@ npm run build:tokens     # → dist/css/tokens.css, dist/scss/*.scss
 npm test
 ```
 
+`npm test` includes a **rendering gate** (`src/radius/render.test.ts`) that loads the
+built stylesheet in headless Chromium and asserts on `getComputedStyle`. It uses
+Playwright's bundled browser if present and otherwise falls back to a system
+Chrome/Chromium/Brave/Edge; if it finds neither it fails with instructions to run
+`npx playwright install chromium`. See [Radius](#radius) for why a text-only test
+suite was not enough.
+
 Preview tools are separate Vite apps with their own dependencies, so each needs
 its own install before its first run:
 
@@ -244,6 +251,15 @@ author time and not varied by theme:
 `tools/radius-preview` imports `emitDerivedRadiusCss` from the same module the
 build uses, so the preview and the shipped CSS cannot disagree about the
 formulas.
+
+**This behaviour is guarded by a rendering test, not a text assertion.**
+`src/radius/render.test.ts` builds the stylesheet, loads it in headless Chromium,
+and asserts computed `border-radius` for a nested mode, a mode reset nested inside
+another mode, and a geometric cap binding. The `:root`-only bug described above was
+textually flawless — every text-diff and string-containment gate in this repo passed
+while it shipped. Reverting the selector to `:root` alone turns four of that file's
+six tests red. If you change how the derived layer is emitted, that file is the
+check that matters.
 
 See [docs/radius-system-rationale.md](docs/radius-system-rationale.md).
 
