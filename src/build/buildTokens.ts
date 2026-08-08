@@ -85,10 +85,16 @@ export async function buildTokens(
   }
 
   // The derived spacing layer's step list is read from the DTCG source rather
-  // than hardcoded, so a step added or renamed in Figma flows through with no
-  // code change. Only `sp-<digits>` qualifies; `size-*` is deliberately
-  // excluded — it feeds sizing-touch-min, an accessibility floor that must not
-  // be scaled by a density knob.
+  // than hardcoded, so a step named `sp-<digits>` added or renamed in Figma
+  // flows through automatically, with no code change. Only `sp-<digits>`
+  // qualifies; `size-*` is deliberately excluded — it feeds sizing-touch-min,
+  // an accessibility floor that must not be scaled by a density knob.
+  //
+  // The predicate stays narrow on purpose: the numeric sort just below does
+  // `Number(name.slice(3))`, which yields NaN for anything but digits (e.g.
+  // "sp-0-5") and would corrupt step ordering. Do not "fix" this by widening
+  // the regex — instead, anything prefixed `sp-` that fails it is reported
+  // and skipped below, so the drop is loud rather than silent.
   const spacingSteps: string[] = [];
   const dimensionCollection = manifest.collections["primitives-dimension"];
   if (dimensionCollection) {
@@ -98,12 +104,28 @@ export async function buildTokens(
           readFileSync(join(tokensDir, file), "utf-8"),
         ) as Record<string, unknown>;
         for (const key of Object.keys(raw)) {
-          if (/^sp-\d+$/.test(key) && !spacingSteps.includes(key)) {
-            spacingSteps.push(key);
+          if (/^sp-\d+$/.test(key)) {
+            if (!spacingSteps.includes(key)) {
+              spacingSteps.push(key);
+            }
+          } else if (key.startsWith("sp-")) {
+            console.warn(
+              `⚠️  Dropped spacing step "${key}" in ${file}: it starts with "sp-" but is not ` +
+                `"sp-<digits>", so no --space-${key.slice("sp-".length)} will be emitted for it. ` +
+                `Rename it to sp-<digits> in Figma, or update the predicate in ` +
+                `src/build/buildTokens.ts (see the comment above) if the naming convention is ` +
+                `intentionally changing.`,
+            );
           }
         }
       }
     }
+  } else {
+    console.warn(
+      `⚠️  No "primitives-dimension" collection in the manifest — the derived spacing layer ` +
+        `will not be emitted for this theme. If its dimension primitives live under a ` +
+        `different collection name, update the lookup in src/build/buildTokens.ts.`,
+    );
   }
   spacingSteps.sort(
     (a, b) => Number(a.slice("sp-".length)) - Number(b.slice("sp-".length)),

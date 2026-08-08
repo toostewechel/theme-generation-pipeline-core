@@ -113,4 +113,15 @@ describe("emitted tokens.css unit contract", () => {
       expect(css).toContain(`--space-${n}: calc(var(--${step}) * var(--space-scale));`);
     }
   });
+
+  it("emits exactly one --space-<n> declaration per --sp-<n> declaration", () => {
+    // Cheap reverse-direction check: the test above confirms every --sp-N has
+    // a --space-N, but not that the counts match — this would miss a step
+    // dropped by the discovery predicate in buildTokens.ts (e.g. a
+    // non-numeric name like sp-0-5) while a differently-named one still
+    // slipped through.
+    const spCount = [...css.matchAll(/^\s*--sp-\d+:/gm)].length;
+    const spaceCount = [...css.matchAll(/^\s*--space-\d+:/gm)].length;
+    expect(spaceCount).toBe(spCount);
+  });
 });

@@ -125,7 +125,11 @@ ancestor mode's value instead of resetting, and every `--radius-adaptive-*` /
 `outputReferences: true` is on for every pass, so semantic tokens emit as
 `var()` chains rather than flattened values (`--sizing-icon-md:
 var(--size-6)`). Overriding a primitive at runtime therefore propagates to
-everything referencing it.
+everything referencing it — but only when the override lands on `:root`.
+Per the same substitution-site rule detailed under [Radius](#radius) and
+[Spacing](#spacing), a chain like `--sizing-icon-md` is resolved once,
+against wherever it is *declared*; overriding `--size-6` deeper in the tree
+has no effect on an ancestor's already-substituted `--sizing-icon-md`.
 
 After the CSS passes, two SCSS files are generated:
 
@@ -356,8 +360,16 @@ but on a tie the later rule wins and consumer CSS loads after generated CSS,
 so an override survives either way.
 
 The step list is read from the `primitives-dimension` collection at build time
-rather than hardcoded, so a step added or renamed in Figma flows through with
-no code change.
+rather than hardcoded, so a step named `sp-<digits>` added or renamed in Figma
+flows through automatically, with no code change. Anything else prefixed
+`sp-` — a half-step like `sp-0-5`, say — does not qualify: it is reported on
+stderr and skipped, not silently emitted or silently dropped. Widening the
+name pattern to admit it is not a safe fix, because the step list is sorted
+numerically afterwards; see the comment in `src/build/buildTokens.ts`. And if
+this theme's dimension primitives live under a collection name other than
+`primitives-dimension`, the derived spacing layer is not emitted at all — also
+reported on stderr, per the same "Ways a theme's files can go missing"
+principle above.
 
 `size-*` is deliberately **not** scaled. It feeds `sizing-touch-min`, an
 accessibility floor; multiplying that by a compact density would push touch
