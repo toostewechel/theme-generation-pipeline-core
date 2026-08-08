@@ -9,7 +9,9 @@ buildTokens({ showDescriptions })
     console.log("\n🎉 Build completed successfully");
     console.log(`✅ ${result.cssPath}`);
     console.log(`✅ ${result.typographyMixinsPath}`);
-    console.log(`✅ ${result.fluidMixinsPath}`);
+    if (result.fluidMixinsPath) {
+      console.log(`✅ ${result.fluidMixinsPath}`);
+    }
     process.exit(0);
   })
   .catch((error) => {

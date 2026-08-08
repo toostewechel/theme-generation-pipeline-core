@@ -95,16 +95,17 @@ function buildFluidMixin(
 
 /**
  * Builds fluid typography SCSS mixins from the config and token files.
- * Returns silently if the config file doesn't exist.
+ * Returns false without writing anything if the config file doesn't exist,
+ * so callers can tell whether `outputPath` was actually produced.
  */
 export async function buildFluidTypographyMixins(
   options: BuildFluidMixinsOptions,
-): Promise<void> {
+): Promise<boolean> {
   const { configPath, primitivesGlob, typographyStylesPath, outputPath } = options;
 
   // Skip silently if no fluid config exists
   if (!existsSync(configPath)) {
-    return;
+    return false;
   }
 
   // Resolve the fluid config (token refs → pixel values)
@@ -114,7 +115,7 @@ export async function buildFluidTypographyMixins(
   });
 
   if (!resolvedConfig) {
-    return;
+    return false;
   }
 
   // Load composite typography tokens for static property references
@@ -188,4 +189,5 @@ export async function buildFluidTypographyMixins(
 
   mkdirSync(dirname(outputPath), { recursive: true });
   writeFileSync(outputPath, header + "\n" + mixins.join("\n\n") + "\n", "utf-8");
+  return true;
 }

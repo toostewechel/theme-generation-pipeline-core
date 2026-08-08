@@ -83,4 +83,12 @@ describe("emitted tokens.css unit contract", () => {
     expect(css).toContain("--radius-adaptive-md:");
     expect(css).toContain("--radius-geometric-md:");
   });
+
+  it("scopes the derived radius layer to :root and every mode selector, not just :root", () => {
+    // A custom property substitutes var() where it's declared, so a block
+    // emitted only under :root never re-resolves for a nested
+    // [data-radius-mode] subtree. The selector must cover both, or mode
+    // switching silently breaks anywhere but the document root.
+    expect(css).toContain(":root, [data-radius-mode] {");
+  });
 });

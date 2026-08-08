@@ -34,7 +34,8 @@ export interface BuildTokensOptions {
 export interface BuildTokensResult {
   cssPath: string;
   typographyMixinsPath: string;
-  fluidMixinsPath: string;
+  /** Null when no fluid config exists, so no file was written. */
+  fluidMixinsPath: string | null;
 }
 
 export async function buildTokens(
@@ -180,15 +181,16 @@ export async function buildTokens(
   await sdScss.buildAllPlatforms();
 
   const fluidMixinsPath = join(scssOutDir, "fluid-typography-mixins.scss");
-  await buildFluidTypographyMixins({
+  const wroteFluidMixins = await buildFluidTypographyMixins({
     configPath: "src/fluid-typography.config.json",
     primitivesGlob: join(tokensDir, "primitives-font.*.tokens.json"),
     typographyStylesPath: join(tokensDir, "typography.styles.tokens.json"),
     outputPath: fluidMixinsPath,
   });
 
-  // Derived radius layer — see src/radius/emitDerived.ts for why this is
-  // emitted once rather than per mode.
+  // Derived radius layer — see src/radius/emitDerived.ts for why its default
+  // selector covers :root *and* every [data-radius-mode] scope, not just
+  // :root.
   cssOutput += "\n" + emitDerivedRadiusCss() + "\n";
 
   const cssPath = join(cssOutDir, "tokens.css");
@@ -205,6 +207,6 @@ export async function buildTokens(
   return {
     cssPath,
     typographyMixinsPath: join(scssOutDir, "typography-mixins.scss"),
-    fluidMixinsPath,
+    fluidMixinsPath: wroteFluidMixins ? fluidMixinsPath : null,
   };
 }

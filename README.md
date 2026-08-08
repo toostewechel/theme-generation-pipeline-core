@@ -44,7 +44,7 @@ The passes, in output order:
 | Base | `:root` | every single-mode collection, both `styles` files, `color` light, `radius` default | everything |
 | Dark colour | `[data-color-mode='dark']` | base + `color.dark` | tokens from `color.dark.tokens.json` |
 | Radius × 4 | `[data-radius-mode='<mode>']` | base + `radius.<mode>` | tokens from `radius.<mode>.tokens.json` |
-| Derived radius | `:root` | not a Style Dictionary pass — see [Radius](#radius) | — |
+| Derived radius | `:root, [data-radius-mode]` | not a Style Dictionary pass — see [Radius](#radius) | — |
 
 Two consequences of that shape:
 
@@ -53,9 +53,17 @@ Two consequences of that shape:
   complete stylesheet. Light colour gets no selector of its own; `default` radius
   does, because the radius loop runs over all four modes unconditionally — so
   `--radius-intensity: 1` is declared twice, in `:root` and again in
-  `[data-radius-mode='default']`. Do not "clean up" that duplicate: `:root` matches
-  only the root element, so the selector is what lets a subtree nested inside
-  `[data-radius-mode='pill']` reset itself back to default.
+  `[data-radius-mode='default']`. Do not "clean up" that duplicate: `:root`
+  matches only the root element, so `[data-radius-mode='default']` is what lets
+  a subtree nested inside `[data-radius-mode='pill']` reset itself back to
+  default. This genuinely matters, not just in theory: the derived radius layer
+  (see [Radius](#radius)) is re-declared on every `[data-radius-mode]` element,
+  including ones set to `default`, and it substitutes whatever
+  `--radius-intensity` is in scope on that same element. Delete the `default`
+  duplicate and a nested `[data-radius-mode='default']` subtree would have no
+  `--radius-intensity` of its own to substitute — it would inherit `pill`'s
+  `9999` instead of resetting to `1`, and every `--radius-adaptive-*` /
+  `--radius-geometric-*` value in that subtree would follow.
 - **Mode passes are sourced wide and filtered narrow.** They load the base
   files so `{token}` references resolve, then filter the emitted output down to
   the mode's own tokens. That is why the dark block is 77 declarations — the
@@ -81,7 +89,7 @@ Three files come out:
 
 | File | Contents |
 |---|---|
-| `dist/css/tokens.css` | All custom properties: `:root`, `[data-color-mode='dark']`, four `[data-radius-mode='…']` blocks, then the derived radius `:root` block |
+| `dist/css/tokens.css` | All custom properties: `:root`, `[data-color-mode='dark']`, four `[data-radius-mode='…']` blocks, then the derived radius `:root, [data-radius-mode]` block |
 | `dist/scss/typography-mixins.scss` | One `@mixin` per composite typography token, all values `var()` references |
 | `dist/scss/fluid-typography-mixins.scss` | The same mixins with `clamp()` font-sizes and unitless line-heights |
 
@@ -183,10 +191,12 @@ Each `[data-radius-mode='…']` block then sets exactly one property:
 ```
 
 The **derived layer** is the API components actually consume, and
-`src/radius/emitDerived.ts` writes it once, in `:root`:
+`src/radius/emitDerived.ts` writes it under `:root, [data-radius-mode]` — one
+block, but with a selector that matches `:root` *and* any element carrying a
+`data-radius-mode` attribute:
 
 ```css
-:root {
+:root, [data-radius-mode] {
   --radius-base: calc(var(--radius-unit) * var(--radius-intensity));
   --radius-adaptive-md: calc(var(--radius-base) * var(--radius-scale-md));
   --radius-geometric-md: min(calc(var(--radius-base) * var(--radius-scale-md)), var(--radius-cap-md));
@@ -194,15 +204,34 @@ The **derived layer** is the API components actually consume, and
 }
 ```
 
-One emission serves all four modes because those declarations are formulas,
-not values. Custom properties are substituted at computed-value time, per
-element: an element inside `[data-radius-mode='pill']` inherits the same
-`--radius-adaptive-md` declaration, but resolves `var(--radius-intensity)`
-against its own cascade, so `--radius-base` and everything downstream
-recompute for that subtree. Emitting the derived layer per mode would repeat
-those eleven declarations four times for no behavioural gain, and computing the
-arithmetic at build time would freeze the values — losing both the runtime mode
-switch and the ability to nest one mode inside another.
+A custom property's *computed value* is its specified value with `var()`
+already substituted, resolved against the element on which the property is
+**declared** — not the element that later consumes it. That matters here
+because it means a single `:root`-only emission does **not** work for nested
+modes: if `--radius-base` were declared only on `:root`, it would substitute
+`var(--radius-intensity)` exactly once, against `:root`'s value, and every
+descendant would simply inherit that already-resolved number. An element
+deeper in the tree that overrides `--radius-intensity` (via
+`[data-radius-mode="pill"]`) would have no effect on `--radius-base`, because
+`--radius-base` was never re-declared — and therefore never re-substituted —
+on that element. Measured in a real browser against a `:root`-only emission:
+a `[data-radius-mode="pill"]` wrapper nested under the document root produced
+the *same* `4px` `border-radius` as no mode attribute at all — the override
+was silently ignored. Mode switching only worked when set on the root
+element itself.
+
+The fix is to re-declare the block at every scope that can change
+`--radius-intensity`, not just at `:root`. `:root, [data-radius-mode]` does
+that: any element carrying the attribute — regardless of its value,
+including `default` (see the note on the `default` duplicate above) — gets
+its own copy of `--radius-base` and everything derived from it, substituting
+`var(--radius-intensity)` freshly against its own cascade. An element with no
+`data-radius-mode` attribute of its own needs no declaration of its own: it
+correctly inherits the finished values from the nearest ancestor that has
+one, or from `:root` if there is none. Computing the arithmetic at build time
+instead would avoid the repetition, but would freeze the values — losing
+both the runtime mode switch and the ability to nest one mode inside
+another.
 
 Which layer a component uses is a component-authoring decision, fixed at
 author time and not varied by theme:

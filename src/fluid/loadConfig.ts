@@ -34,7 +34,6 @@ export async function resolveFluidConfig(
   // core only has to know about a single lookup source.
   const primitives: Record<string, any> = {};
   for await (const entry of glob(primitivesGlob)) {
-    if (!existsSync(entry)) continue;
     Object.assign(primitives, JSON.parse(readFileSync(entry, "utf-8")));
   }
 
