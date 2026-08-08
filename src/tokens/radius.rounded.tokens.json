@@ -2,7 +2,7 @@
   "radius-intensity": {
     "$type": "dimension",
     "$value": {
-      "value": 2.5,
+      "value": 1.5,
       "unit": "px"
     },
     "$description": "unitless"

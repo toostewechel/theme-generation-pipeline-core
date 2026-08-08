@@ -64,7 +64,7 @@ Adaptive tokens scale without limit. For pill mode (intensity: 9999), this produ
 );
 ```
 
-Geometric tokens add a ceiling. A card with `geometric-lg` in rounded mode gets `min(9px, 16px) = 9px` instead of scaling unbounded. Without caps, high-intensity modes would turn rectangular containers into ovals.
+Geometric tokens add a ceiling. A card with `geometric-lg` in rounded mode gets `min(7.5px, 16px) = 7.5px` — under its cap, so unaffected. A badge with `geometric-xs` gets `min(3px, 2px) = 2px` — the cap binds. Without caps, high-intensity modes would turn rectangular containers into ovals.
 
 ### Component override slot
 
@@ -99,17 +99,36 @@ Rationale:
 
 ### 3. Geometric caps as a safety net, not a design lever
 
-Caps exist to prevent containers from distorting at high intensities. They are set high enough that they rarely activate in default or rounded modes — only at extreme values.
+Caps exist to prevent containers from distorting at high intensities. The threshold at
+which a cap binds is `cap ÷ (unit × scale)`:
 
-| Size | Cap  | Activates when base × scale exceeds... |
-|------|------|----------------------------------------|
-| xs   | 4px  | intensity > 2 (at unit=4, scale=0.5)  |
-| sm   | 6px  | intensity > 2 (at unit=4, scale=0.75) |
-| md   | 10px | intensity > 2.5 (at unit=4, scale=1)  |
-| lg   | 16px | intensity > 3.2 (at unit=4, scale=1.25) |
-| xl   | 24px | intensity > 4 (at unit=4, scale=1.5)  |
+| Size | Cap  | Binds above intensity...                 | Binds in `rounded` (1.5)? |
+|------|------|------------------------------------------|---------------------------|
+| xs   | 2px  | 1.0 (at unit=4, scale=0.5)               | **yes**                   |
+| sm   | 4px  | 1.33 (at unit=4, scale=0.75)             | **yes**                   |
+| md   | 8px  | 2.0 (at unit=4, scale=1)                 | no                        |
+| lg   | 16px | 3.2 (at unit=4, scale=1.25)              | no                        |
+| xl   | 24px | 4.0 (at unit=4, scale=1.5)               | no                        |
 
-Designers shouldn't need to think about caps in normal use. They're a guardrail for the system, not a tuning surface.
+So the small tiers are not an extreme-value guardrail — they bind in ordinary use. Geometric
+values per mode (`base = unit × intensity`):
+
+| Size | `default` (base 4px) | `rounded` (base 6px) |
+|------|----------------------|----------------------|
+| xs   | 2px *(at cap)*       | 2px *(capped)*       |
+| sm   | 3px                  | 4px *(capped)*       |
+| md   | 4px                  | 6px                  |
+| lg   | 5px                  | 7.5px                |
+| xl   | 6px                  | 9px                  |
+
+**Consequence worth knowing:** `geometric-xs` is `2px` in both `default` and `rounded` — the cap
+erases the difference between those modes at that tier. Adaptive tokens are unaffected
+(`3px` vs `4.5px`), so a component that should visibly respond to mode switching at xs must
+consume the adaptive token, not the geometric one.
+
+Caps remain a system guardrail rather than a tuning surface, but they are not invisible at the
+small end. If xs and sm should differentiate across modes, raise those two caps rather than
+lowering the scale multipliers.
 
 ### 4. Adaptive vs geometric is a component-level choice
 
@@ -145,9 +164,9 @@ The tool is designed for designers, not developers:
 | `radius-scale-md` | 1 | Scale multiplier for medium elements (identity) |
 | `radius-scale-lg` | 1.25 | Scale multiplier for large elements |
 | `radius-scale-xl` | 1.5 | Scale multiplier for extra-large elements |
-| `radius-cap-xs` | 4px | Geometric ceiling for xs |
-| `radius-cap-sm` | 6px | Geometric ceiling for sm |
-| `radius-cap-md` | 10px | Geometric ceiling for md |
+| `radius-cap-xs` | 2px | Geometric ceiling for xs |
+| `radius-cap-sm` | 4px | Geometric ceiling for sm |
+| `radius-cap-md` | 8px | Geometric ceiling for md |
 | `radius-cap-lg` | 16px | Geometric ceiling for lg |
 | `radius-cap-xl` | 24px | Geometric ceiling for xl |
 | `radius-none` | 0px | Explicit zero for overrides |

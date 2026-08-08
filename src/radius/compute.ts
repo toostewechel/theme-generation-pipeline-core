@@ -105,7 +105,7 @@ export function buildDefaultParams(
         : 1,
       rounded: modeTokens["rounded"]
         ? tokenValue(modeTokens["rounded"]["radius-intensity"])
-        : 2.5,
+        : 1.5,
       pill: modeTokens["pill"]
         ? tokenValue(modeTokens["pill"]["radius-intensity"])
         : 9999,
@@ -120,6 +120,6 @@ export function getHardcodedDefaults(): RadiusParams {
     unit: 4,
     scales: { xs: 0.5, sm: 0.75, md: 1, lg: 1.25, xl: 1.5 },
     caps: { xs: 2, sm: 4, md: 8, lg: 16, xl: 24 },
-    modes: { sharp: 0, default: 1, rounded: 2.5, pill: 9999 },
+    modes: { sharp: 0, default: 1, rounded: 1.5, pill: 9999 },
   };
 }
