@@ -1,7 +1,8 @@
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { dirname } from "path";
 import { generateClamp, generateUnitlessClamp } from "./generateClamp.js";
-import { resolveFluidConfig, type ResolvedFluidStyle, type ResolvedLineHeight } from "./resolveConfig.js";
+import { resolveFluidConfig } from "./loadConfig.js";
+import type { ResolvedFluidStyle, ResolvedLineHeight } from "./resolveConfig.js";
 
 export interface BuildFluidMixinsOptions {
   configPath: string;

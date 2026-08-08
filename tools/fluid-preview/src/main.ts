@@ -1,11 +1,15 @@
-import { generateClamp, generateUnitlessClamp, interpolateAtViewport } from "./clamp.js";
+import {
+  generateClamp,
+  generateUnitlessClamp,
+  interpolateAtViewport,
+} from "@project/src/fluid/generateClamp.js";
 import {
   buildTokenLookup,
   resolveConfig,
   type FluidTypographyConfig,
   type ResolvedFluidConfig,
   type ResolvedLineHeight,
-} from "./resolveConfig.js";
+} from "@project/src/fluid/resolveConfig.js";
 import "./fonts.css";
 import "./styles.css";
 

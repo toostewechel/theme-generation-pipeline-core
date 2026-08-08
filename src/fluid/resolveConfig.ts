@@ -1,6 +1,3 @@
-import { readFileSync, existsSync } from "fs";
-import { glob } from "fs/promises";
-
 export interface FluidRange {
   min: string;
   max: string;
@@ -13,6 +10,7 @@ export interface FluidStyleConfig {
   fontSize: FluidRange;
   lineHeight?: LineHeightConfig;
   viewports?: { min: number; max: number };
+  fontFamily?: string;
 }
 
 export interface FluidTypographyConfig {
@@ -33,6 +31,7 @@ export interface ResolvedFluidStyle {
   fontSize: ResolvedFluidRange;
   lineHeight?: ResolvedLineHeight;
   viewports: { min: number; max: number };
+  fontFamily?: string;
 }
 
 export interface ResolvedFluidConfig {
@@ -42,26 +41,20 @@ export interface ResolvedFluidConfig {
 }
 
 /**
- * Builds a lookup map from token name to pixel value by reading
- * DTCG-format primitive token files.
+ * Builds a token-name → px-value lookup from a flat DTCG primitives object.
+ * Non-dimension tokens are skipped.
  */
-function buildTokenLookup(tokenFilePaths: string[]): Map<string, number> {
+export function buildTokenLookup(
+  primitives: Record<string, any>,
+): Map<string, number> {
   const lookup = new Map<string, number>();
 
-  for (const filePath of tokenFilePaths) {
-    if (!existsSync(filePath)) continue;
-    const content = JSON.parse(readFileSync(filePath, "utf-8"));
-
-    for (const [key, token] of Object.entries(content)) {
-      const t = token as any;
-      if (t.$type === "dimension" && t.$value) {
-        // DTCG dimension format: { value: number, unit: "px" }
-        if (typeof t.$value === "object" && t.$value.value !== undefined) {
-          lookup.set(key, t.$value.value);
-        } else if (typeof t.$value === "number") {
-          lookup.set(key, t.$value);
-        }
-      }
+  for (const [key, token] of Object.entries(primitives)) {
+    if (token?.$type !== "dimension" || !token.$value) continue;
+    if (typeof token.$value === "object" && token.$value.value !== undefined) {
+      lookup.set(key, token.$value.value);
+    } else if (typeof token.$value === "number") {
+      lookup.set(key, token.$value);
     }
   }
 
@@ -72,22 +65,17 @@ function buildTokenLookup(tokenFilePaths: string[]): Map<string, number> {
  * Resolves a token reference or raw px value to a number.
  * Accepts: "{font-size-1200}" or "14px" or "14"
  */
-function resolveValue(
-  value: string,
-  tokenLookup: Map<string, number>,
-): number {
-  // Token reference: {token-name}
+function resolveValue(value: string, lookup: Map<string, number>): number {
   const refMatch = value.match(/^\{(.+)\}$/);
   if (refMatch) {
     const tokenName = refMatch[1];
-    const px = tokenLookup.get(tokenName);
+    const px = lookup.get(tokenName);
     if (px === undefined) {
       throw new Error(`Token reference "${tokenName}" not found in primitives`);
     }
     return px;
   }
 
-  // Raw px value: "14px" or "14"
   const num = parseFloat(value);
   if (isNaN(num)) {
     throw new Error(`Cannot parse value: "${value}"`);
@@ -95,62 +83,36 @@ function resolveValue(
   return num;
 }
 
-function resolveRange(
-  range: FluidRange,
-  tokenLookup: Map<string, number>,
-): ResolvedFluidRange {
-  return {
-    minPx: resolveValue(range.min, tokenLookup),
-    maxPx: resolveValue(range.max, tokenLookup),
-  };
-}
-
-export interface ResolveOptions {
-  configPath: string;
-  primitivesGlob: string;
-}
-
 /**
- * Reads the fluid typography config and resolves all token references
- * to pixel values. Line-height values are unitless and passed through as-is.
+ * Resolves a fluid typography config against a token lookup.
+ * Line-height is unitless and passed through as-is (no token resolution).
  */
-export async function resolveFluidConfig(
-  options: ResolveOptions,
-): Promise<ResolvedFluidConfig | null> {
-  const { configPath, primitivesGlob } = options;
+export function resolveConfig(
+  config: FluidTypographyConfig,
+  lookup: Map<string, number>,
+): ResolvedFluidConfig {
+  const styles: Record<string, ResolvedFluidStyle> = {};
 
-  if (!existsSync(configPath)) {
-    return null;
-  }
-
-  const config: FluidTypographyConfig = JSON.parse(
-    readFileSync(configPath, "utf-8"),
-  );
-
-  // Find all primitive font token files matching the glob
-  const tokenFiles: string[] = [];
-  for await (const entry of glob(primitivesGlob)) {
-    tokenFiles.push(entry);
-  }
-
-  const tokenLookup = buildTokenLookup(tokenFiles);
-
-  const resolvedStyles: Record<string, ResolvedFluidStyle> = {};
   for (const [styleName, style] of Object.entries(config.styles)) {
     const resolved: ResolvedFluidStyle = {
-      fontSize: resolveRange(style.fontSize, tokenLookup),
+      fontSize: {
+        minPx: resolveValue(style.fontSize.min, lookup),
+        maxPx: resolveValue(style.fontSize.max, lookup),
+      },
       viewports: style.viewports ?? config.viewports,
     };
-    // Line-height is unitless — pass through directly (no token resolution)
     if (style.lineHeight !== undefined) {
       resolved.lineHeight = style.lineHeight;
     }
-    resolvedStyles[styleName] = resolved;
+    if (style.fontFamily) {
+      resolved.fontFamily = style.fontFamily;
+    }
+    styles[styleName] = resolved;
   }
 
   return {
     baseFontSize: config.baseFontSize,
     viewports: config.viewports,
-    styles: resolvedStyles,
+    styles,
   };
 }
