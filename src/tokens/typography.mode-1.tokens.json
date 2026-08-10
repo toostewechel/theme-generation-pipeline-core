@@ -239,11 +239,11 @@
     "$type": "dimension",
     "$value": "{font-letter-spacing-normal}"
   },
-  "typography-ui-primary-md-font-family": {
+  "typography-ui-secondary-md-font-family": {
     "$type": "fontFamily",
     "$value": "{font-family-ui}"
   },
-  "typography-ui-secondary-md-font-family": {
+  "typography-ui-primary-md-font-family": {
     "$type": "fontFamily",
     "$value": "{font-family-ui}"
   },
@@ -255,27 +255,27 @@
     "$type": "fontWeight",
     "$value": "{font-weight-medium}"
   },
-  "typography-ui-secondary-md-font-size": {
-    "$type": "dimension",
-    "$value": "{font-size-200}"
-  },
   "typography-ui-primary-md-font-size": {
     "$type": "dimension",
     "$value": "{font-size-200}"
   },
-  "typography-ui-primary-md-line-height": {
+  "typography-ui-secondary-md-font-size": {
     "$type": "dimension",
-    "$value": "{font-line-height-600}"
+    "$value": "{font-size-200}"
   },
   "typography-ui-secondary-md-line-height": {
     "$type": "dimension",
     "$value": "{font-line-height-600}"
   },
-  "typography-ui-secondary-md-letter-spacing": {
+  "typography-ui-primary-md-line-height": {
+    "$type": "dimension",
+    "$value": "{font-line-height-600}"
+  },
+  "typography-ui-primary-md-letter-spacing": {
     "$type": "dimension",
     "$value": "{font-letter-spacing-normal}"
   },
-  "typography-ui-primary-md-letter-spacing": {
+  "typography-ui-secondary-md-letter-spacing": {
     "$type": "dimension",
     "$value": "{font-letter-spacing-normal}"
   },
@@ -327,35 +327,35 @@
     "$type": "fontFamily",
     "$value": "{font-family-ui}"
   },
-  "typography-ui-primary-xs-font-weight": {
-    "$type": "fontWeight",
-    "$value": "{font-weight-semi-bold}"
-  },
   "typography-ui-secondary-xs-font-weight": {
     "$type": "fontWeight",
     "$value": "{font-weight-medium}"
   },
-  "typography-ui-primary-xs-font-size": {
-    "$type": "dimension",
-    "$value": "{font-size-75}"
+  "typography-ui-primary-xs-font-weight": {
+    "$type": "fontWeight",
+    "$value": "{font-weight-semi-bold}"
   },
   "typography-ui-secondary-xs-font-size": {
     "$type": "dimension",
     "$value": "{font-size-75}"
   },
-  "typography-ui-primary-xs-line-height": {
+  "typography-ui-primary-xs-font-size": {
     "$type": "dimension",
-    "$value": "{font-line-height-400}"
+    "$value": "{font-size-75}"
   },
   "typography-ui-secondary-xs-line-height": {
     "$type": "dimension",
     "$value": "{font-line-height-400}"
   },
-  "typography-ui-primary-xs-letter-spacing": {
+  "typography-ui-primary-xs-line-height": {
+    "$type": "dimension",
+    "$value": "{font-line-height-400}"
+  },
+  "typography-ui-secondary-xs-letter-spacing": {
     "$type": "dimension",
     "$value": "{font-letter-spacing-normal}"
   },
-  "typography-ui-secondary-xs-letter-spacing": {
+  "typography-ui-primary-xs-letter-spacing": {
     "$type": "dimension",
     "$value": "{font-letter-spacing-normal}"
   },

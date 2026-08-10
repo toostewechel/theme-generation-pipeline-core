@@ -14,6 +14,13 @@
     },
     "$description": "unitless"
   },
+  "radius-none": {
+    "$type": "dimension",
+    "$value": {
+      "value": 0,
+      "unit": "px"
+    }
+  },
   "radius-scale-sm": {
     "$type": "dimension",
     "$value": {
@@ -21,13 +28,6 @@
       "unit": "px"
     },
     "$description": "unitless"
-  },
-  "radius-none": {
-    "$type": "dimension",
-    "$value": {
-      "value": 0,
-      "unit": "px"
-    }
   },
   "radius-full": {
     "$type": "dimension",

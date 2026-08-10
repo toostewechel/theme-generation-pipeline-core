@@ -5,11 +5,11 @@
   },
   "font-family-body": {
     "$type": "fontFamily",
-    "$value": "IBM Plex Sans"
+    "$value": "Hanken Grotesk"
   },
   "font-family-ui": {
     "$type": "fontFamily",
-    "$value": "IBM Plex Sans"
+    "$value": "Hanken Grotesk"
   },
   "font-family-mono": {
     "$type": "fontFamily",
