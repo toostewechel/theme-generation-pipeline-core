@@ -14,13 +14,6 @@
     },
     "$description": "unitless"
   },
-  "radius-none": {
-    "$type": "dimension",
-    "$value": {
-      "value": 0,
-      "unit": "px"
-    }
-  },
   "radius-scale-sm": {
     "$type": "dimension",
     "$value": {
@@ -29,10 +22,10 @@
     },
     "$description": "unitless"
   },
-  "radius-full": {
+  "radius-none": {
     "$type": "dimension",
     "$value": {
-      "value": 9999,
+      "value": 0,
       "unit": "px"
     }
   },
@@ -43,6 +36,13 @@
       "unit": "px"
     },
     "$description": "unitless"
+  },
+  "radius-full": {
+    "$type": "dimension",
+    "$value": {
+      "value": 9999,
+      "unit": "px"
+    }
   },
   "radius-scale-lg": {
     "$type": "dimension",

@@ -5,15 +5,15 @@
   },
   "font-family-body": {
     "$type": "fontFamily",
-    "$value": "Hanken Grotesk"
+    "$value": "Test Founders Grotesk"
   },
   "font-family-ui": {
     "$type": "fontFamily",
-    "$value": "Hanken Grotesk"
+    "$value": "Test Founders Grotesk"
   },
   "font-family-mono": {
     "$type": "fontFamily",
-    "$value": "IBM Plex Mono"
+    "$value": "Berkeley Mono"
   },
   "font-family-handwritten": {
     "$type": "fontFamily",
@@ -245,13 +245,6 @@
     },
     "$description": "em"
   },
-  "font-line-height-1400": {
-    "$type": "dimension",
-    "$value": {
-      "value": 56,
-      "unit": "px"
-    }
-  },
   "font-letter-spacing-wider": {
     "$type": "dimension",
     "$value": {
@@ -259,6 +252,13 @@
       "unit": "px"
     },
     "$description": "em"
+  },
+  "font-line-height-1400": {
+    "$type": "dimension",
+    "$value": {
+      "value": 56,
+      "unit": "px"
+    }
   },
   "font-letter-spacing-wide": {
     "$type": "dimension",
@@ -290,6 +290,13 @@
       "unit": "px"
     }
   },
+  "font-line-height-2000": {
+    "$type": "dimension",
+    "$value": {
+      "value": 80,
+      "unit": "px"
+    }
+  },
   "font-letter-spacing-tight": {
     "$type": "dimension",
     "$value": {
@@ -297,13 +304,6 @@
       "unit": "px"
     },
     "$description": "em"
-  },
-  "font-line-height-2000": {
-    "$type": "dimension",
-    "$value": {
-      "value": 80,
-      "unit": "px"
-    }
   },
   "font-line-height-2400": {
     "$type": "dimension",

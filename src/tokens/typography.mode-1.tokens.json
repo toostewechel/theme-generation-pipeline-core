@@ -263,19 +263,19 @@
     "$type": "dimension",
     "$value": "{font-size-200}"
   },
-  "typography-ui-secondary-md-line-height": {
-    "$type": "dimension",
-    "$value": "{font-line-height-600}"
-  },
   "typography-ui-primary-md-line-height": {
     "$type": "dimension",
     "$value": "{font-line-height-600}"
   },
-  "typography-ui-primary-md-letter-spacing": {
+  "typography-ui-secondary-md-line-height": {
+    "$type": "dimension",
+    "$value": "{font-line-height-600}"
+  },
+  "typography-ui-secondary-md-letter-spacing": {
     "$type": "dimension",
     "$value": "{font-letter-spacing-normal}"
   },
-  "typography-ui-secondary-md-letter-spacing": {
+  "typography-ui-primary-md-letter-spacing": {
     "$type": "dimension",
     "$value": "{font-letter-spacing-normal}"
   },
@@ -295,11 +295,11 @@
     "$type": "fontWeight",
     "$value": "{font-weight-semi-bold}"
   },
-  "typography-ui-secondary-sm-font-size": {
+  "typography-ui-primary-sm-font-size": {
     "$type": "dimension",
     "$value": "{font-size-100}"
   },
-  "typography-ui-primary-sm-font-size": {
+  "typography-ui-secondary-sm-font-size": {
     "$type": "dimension",
     "$value": "{font-size-100}"
   },
@@ -311,11 +311,11 @@
     "$type": "dimension",
     "$value": "{font-line-height-500}"
   },
-  "typography-ui-secondary-sm-letter-spacing": {
+  "typography-ui-primary-sm-letter-spacing": {
     "$type": "dimension",
     "$value": "{font-letter-spacing-normal}"
   },
-  "typography-ui-primary-sm-letter-spacing": {
+  "typography-ui-secondary-sm-letter-spacing": {
     "$type": "dimension",
     "$value": "{font-letter-spacing-normal}"
   },
@@ -335,19 +335,19 @@
     "$type": "fontWeight",
     "$value": "{font-weight-semi-bold}"
   },
-  "typography-ui-secondary-xs-font-size": {
-    "$type": "dimension",
-    "$value": "{font-size-75}"
-  },
   "typography-ui-primary-xs-font-size": {
     "$type": "dimension",
     "$value": "{font-size-75}"
   },
-  "typography-ui-secondary-xs-line-height": {
+  "typography-ui-secondary-xs-font-size": {
+    "$type": "dimension",
+    "$value": "{font-size-75}"
+  },
+  "typography-ui-primary-xs-line-height": {
     "$type": "dimension",
     "$value": "{font-line-height-400}"
   },
-  "typography-ui-primary-xs-line-height": {
+  "typography-ui-secondary-xs-line-height": {
     "$type": "dimension",
     "$value": "{font-line-height-400}"
   },
