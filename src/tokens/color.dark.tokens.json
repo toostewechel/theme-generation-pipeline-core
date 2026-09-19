@@ -119,10 +119,6 @@
     "$type": "color",
     "$value": "{neutral-0}"
   },
-  "bg-scrim-overlay": {
-    "$type": "color",
-    "$value": "{black-alpha-32}"
-  },
   "bg-status-success": {
     "$type": "color",
     "$value": "{patina-green-500}"
@@ -154,14 +150,6 @@
   "bg-status-info-subtle": {
     "$type": "color",
     "$value": "{ledger-blue-900}"
-  },
-  "bg-scrim-edge-start": {
-    "$type": "color",
-    "$value": "{black-alpha-64}"
-  },
-  "bg-scrim-edge-end": {
-    "$type": "color",
-    "$value": "{black-alpha-8}"
   },
   "bg-field-default": {
     "$type": "color",

@@ -97,7 +97,7 @@
   },
   "bg-brand-subtle": {
     "$type": "color",
-    "$value": "{ledger-blue-100}"
+    "$value": "{ledger-blue-50}"
   },
   "bg-brand-subtlest": {
     "$type": "color",
@@ -118,10 +118,6 @@
   "bg-inverted": {
     "$type": "color",
     "$value": "{neutral-900}"
-  },
-  "bg-scrim-overlay": {
-    "$type": "color",
-    "$value": "{black-alpha-32}"
   },
   "bg-status-success": {
     "$type": "color",
@@ -154,14 +150,6 @@
   "bg-status-info-subtle": {
     "$type": "color",
     "$value": "{ledger-blue-100}"
-  },
-  "bg-scrim-edge-start": {
-    "$type": "color",
-    "$value": "{white-alpha-64}"
-  },
-  "bg-scrim-edge-end": {
-    "$type": "color",
-    "$value": "{white-alpha-8}"
   },
   "bg-field-default": {
     "$type": "color",

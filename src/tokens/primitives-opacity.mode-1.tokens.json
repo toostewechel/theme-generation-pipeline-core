@@ -1,46 +1,79 @@
 {
   "opacity-0": {
-    "$type": "number",
-    "$value": 0
+    "$type": "dimension",
+    "$value": {
+      "value": 0,
+      "unit": "px"
+    }
   },
   "opacity-4": {
-    "$type": "number",
-    "$value": 4
+    "$type": "dimension",
+    "$value": {
+      "value": 4,
+      "unit": "px"
+    }
   },
   "opacity-8": {
-    "$type": "number",
-    "$value": 8
+    "$type": "dimension",
+    "$value": {
+      "value": 8,
+      "unit": "px"
+    }
   },
   "opacity-12": {
-    "$type": "number",
-    "$value": 12
+    "$type": "dimension",
+    "$value": {
+      "value": 12,
+      "unit": "px"
+    }
   },
   "opacity-16": {
-    "$type": "number",
-    "$value": 16
+    "$type": "dimension",
+    "$value": {
+      "value": 16,
+      "unit": "px"
+    }
   },
   "opacity-24": {
-    "$type": "number",
-    "$value": 24
+    "$type": "dimension",
+    "$value": {
+      "value": 24,
+      "unit": "px"
+    }
   },
   "opacity-32": {
-    "$type": "number",
-    "$value": 32
+    "$type": "dimension",
+    "$value": {
+      "value": 32,
+      "unit": "px"
+    }
   },
   "opacity-40": {
-    "$type": "number",
-    "$value": 40
+    "$type": "dimension",
+    "$value": {
+      "value": 40,
+      "unit": "px"
+    }
   },
   "opacity-64": {
-    "$type": "number",
-    "$value": 64
+    "$type": "dimension",
+    "$value": {
+      "value": 64,
+      "unit": "px"
+    }
   },
   "opacity-80": {
-    "$type": "number",
-    "$value": 80
+    "$type": "dimension",
+    "$value": {
+      "value": 80,
+      "unit": "px"
+    }
   },
   "opacity-100": {
-    "$type": "number",
-    "$value": 100
+    "$type": "dimension",
+    "$value": {
+      "value": 100,
+      "unit": "px"
+    }
   }
 }
