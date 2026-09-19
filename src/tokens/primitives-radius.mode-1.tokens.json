@@ -29,13 +29,6 @@
       "unit": "px"
     }
   },
-  "radius-full": {
-    "$type": "dimension",
-    "$value": {
-      "value": 9999,
-      "unit": "px"
-    }
-  },
   "radius-scale-md": {
     "$type": "dimension",
     "$value": {
@@ -43,6 +36,13 @@
       "unit": "px"
     },
     "$description": "unitless"
+  },
+  "radius-full": {
+    "$type": "dimension",
+    "$value": {
+      "value": 9999,
+      "unit": "px"
+    }
   },
   "radius-scale-lg": {
     "$type": "dimension",

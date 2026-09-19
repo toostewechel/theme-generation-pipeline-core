@@ -11,12 +11,14 @@ npm run build:tokens     # → dist/css/tokens.css, dist/scss/*.scss
 npm test
 ```
 
-`npm test` includes a **rendering gate** (`src/radius/render.test.ts`) that loads the
-built stylesheet in headless Chromium and asserts on `getComputedStyle`. It uses
-Playwright's bundled browser if present and otherwise falls back to a system
-Chrome/Chromium/Brave/Edge; if it finds neither it fails with instructions to run
-`npx playwright install chromium`. See [Radius](#radius) for why a text-only test
-suite was not enough.
+`npm test` includes two **rendering gates** (`src/radius/render.test.ts`,
+`src/spacing/render.test.ts`) that load the built stylesheet in headless
+Chromium and assert on `getComputedStyle`, one per derived layer, guarding the
+same class of custom-property cascade defect in each. They use Playwright's
+bundled browser if present and otherwise fall back to a system
+Chrome/Chromium/Brave/Edge; if neither is found they fail with instructions to
+run `npx playwright install chromium`. See [Radius](#radius) for why a
+text-only test suite was not enough.
 
 Preview tools are separate Vite apps with their own dependencies, so each needs
 its own install before its first run:
@@ -121,9 +123,13 @@ ancestor mode's value instead of resetting, and every `--radius-adaptive-*` /
 `--radius-geometric-*` value in that subtree would follow.
 
 `outputReferences: true` is on for every pass, so semantic tokens emit as
-`var()` chains rather than flattened values (`--spacing-layout-stack-md:
-var(--space-4)`). Overriding a primitive at runtime therefore propagates to
-everything referencing it.
+`var()` chains rather than flattened values (`--sizing-icon-md:
+var(--size-6)`). Overriding a primitive at runtime therefore propagates to
+everything referencing it — but only when the override lands on `:root`.
+Per the same substitution-site rule detailed under [Radius](#radius) and
+[Spacing](#spacing), a chain like `--sizing-icon-md` is resolved once,
+against wherever it is *declared*; overriding `--size-6` deeper in the tree
+has no effect on an ancestor's already-substituted `--sizing-icon-md`.
 
 After the CSS passes, two SCSS files are generated:
 
@@ -139,7 +145,7 @@ Three files come out:
 
 | File | Contents |
 |---|---|
-| `dist/css/tokens.css` | All custom properties: `:root` first, then one block per declared mode, then the derived radius block. Which mode blocks appear depends entirely on what the manifest declares |
+| `dist/css/tokens.css` | All custom properties: `:root` first, then one block per declared mode, then the derived radius block, then the derived spacing block. Which mode blocks appear depends entirely on what the manifest declares |
 | `dist/scss/typography-mixins.scss` | One `@mixin` per composite typography token, all values `var()` references |
 | `dist/scss/fluid-typography-mixins.scss` | The same mixins with `clamp()` font-sizes and unitless line-heights |
 
@@ -161,22 +167,21 @@ flat maps of token name to token; there are no nested groups.
 | `color` | `light`, `dark` | Semantic colour referencing the primitives |
 | `primitives-font` | `mode-1` | Font families, weights, sizes, line heights, letter spacings |
 | `typography` | `mode-1` | Per-style typography properties (`typography-display-xl-font-size`, …) |
-| `primitives-dimension` | `mode-1` | The `space-*` / `size-*` scale |
-| `dimension` | `mode-1` | Semantic spacing (`spacing-layout-stack-md`, …) |
+| `primitives-dimension` | `mode-1` | The `sp-*` spacing scale and the `size-*` scale |
+| `dimension` | `mode-1` | Semantic sizing (`sizing-control-md`, `sizing-icon-sm`, …) |
 | `primitives-radius` | `mode-1` | `radius-unit`, `radius-scale-*`, `radius-cap-*`, `radius-none`, `radius-full` |
 | `radius` | `sharp`, `default`, `rounded`, `pill` | One `radius-intensity` value per mode |
 
 The manifest also has a `styles` block, always folded into the base pass:
 `typography.styles.tokens.json` (composite `$type: typography` tokens, the
-source of the SCSS mixins) and `effects.styles.tokens.json` (shadow tokens
-`brand-low|medium|high`, `neutral-low|medium|high`).
+source of the SCSS mixins).
 
 Naming follows two shapes:
 
 - Primitives: `{category}-{scale}` — `color-neutral-500`, `font-size-1300`,
-  `space-4`
+  `sp-4`
 - Semantic: `{category}-{context}-{variant}` — `color-control-border-error`,
-  `spacing-layout-stack-md`
+  `sizing-control-md`
 
 Names reach CSS through `name/kebab` and a numeric-aware sort, so
 `--color-accent-50` precedes `--color-accent-100` instead of sorting
@@ -208,8 +213,7 @@ survives a token re-export. Any other `$description` value is just a comment
 in the output (`/** … */`), which `npm run build:tokens-nd` suppresses.
 
 The rule is absolute, including where it looks odd: `radius-full` is authored
-as `9999px` and ships as `624.9375rem`, and the offsets inside the `effects`
-shadow tokens are in `rem` too.
+as `9999px` and ships as `624.9375rem`.
 
 **Transform order in `src/transforms/cssPlatform.ts` is load-bearing.** `dimension/em`
 must run before `dimension/css`; `dimension/unitless` must run last.
@@ -301,6 +305,75 @@ six tests red. If you change how the derived layer is emitted, that file is the
 check that matters.
 
 See [docs/radius-system-rationale.md](docs/radius-system-rationale.md).
+
+## Spacing
+
+Spacing ships as two layers, the same split radius uses.
+
+The **primitive layer** comes from the DTCG tokens: `--sp-0` through
+`--sp-124`, emitted in `rem` by the normal base pass. These are the
+Figma-owned values and are never wrapped or rewritten.
+
+The **derived layer** is generated by `src/spacing/emitDerived.ts` and is what
+components consume:
+
+```css
+:root {
+  --space-scale: 1;
+}
+
+:root, [data-density] {
+  --space-16: calc(var(--sp-16) * var(--space-scale));
+  /* … one per sp-* step */
+}
+```
+
+`--space-scale` is a density knob. Set it on `:root` for a global change, or on
+any element carrying `data-density` for a subtree:
+
+```html
+<aside data-density style="--space-scale: 0.8">…</aside>
+```
+
+Two things about that emission are load-bearing.
+
+**The derived block is re-declared at `[data-density]`, not only at `:root`.**
+A custom property substitutes `var()` where it is *declared*; a `:root`-only
+block resolves `--space-scale` once against `:root` and descendants inherit the
+finished value, so overriding the knob deeper down does nothing. This is the
+same trap documented at length under Radius, and `src/spacing/render.test.ts`
+is the gate that catches it.
+
+**`--space-scale: 1` sits in its own `:root` block.** The derived block is
+re-declared at every `[data-density]` scope, so a default living there would
+re-declare `--space-scale: 1` on every element carrying a bare `data-density`,
+resetting whatever density it inherited from an ancestor:
+
+```html
+<div data-density style="--space-scale: 0.8">
+  <div data-density>          <!-- inherits 0.8 — would reset to 1 -->
+```
+
+Specificity is not the reason, though it looks like it should be.
+`[data-density]` and a consumer's `[data-density="compact"]` do tie at 0,1,0,
+but on a tie the later rule wins and consumer CSS loads after generated CSS,
+so an override survives either way.
+
+The step list is read from the `primitives-dimension` collection at build time
+rather than hardcoded, so a step named `sp-<digits>` added or renamed in Figma
+flows through automatically, with no code change. Anything else prefixed
+`sp-` — a half-step like `sp-0-5`, say — does not qualify: it is reported on
+stderr and skipped, not silently emitted or silently dropped. Widening the
+name pattern to admit it is not a safe fix, because the step list is sorted
+numerically afterwards; see the comment in `src/build/buildTokens.ts`. And if
+this theme's dimension primitives live under a collection name other than
+`primitives-dimension`, the derived spacing layer is not emitted at all — also
+reported on stderr, per the same "Ways a theme's files can go missing"
+principle above.
+
+`size-*` is deliberately **not** scaled. It feeds `sizing-touch-min`, an
+accessibility floor; multiplying that by a compact density would push touch
+targets under the minimum.
 
 ## Fluid typography
 
@@ -403,8 +476,10 @@ src/
   transforms/cssPlatform.ts   # transform list + unit config (order matters)
   transforms/oklchColor.ts    # DTCG colour → oklch() css
   radius/                     # compute.ts (pure) + emitDerived.ts (css layer)
+  spacing/                    # emitDerived.ts (css layer) — density knob
   fluid/                      # generateClamp, resolveConfig (pure) + loadConfig, buildFluidMixins
   drift/token-drift.ts        # name walker + diff (pure, reader injected)
+  test-support/               # shared test helpers (Chromium launcher)
   tokens/                     # DTCG sources + manifest.json
   fluid-typography.config.json
 scripts/                      # CLI entry points: argv, git/fs readers, exit codes

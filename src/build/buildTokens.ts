@@ -4,6 +4,7 @@ import { join } from "path";
 import { typographyMixinsFormat } from "../formatters/typographyMixins.js";
 import { buildFluidTypographyMixins } from "../fluid/buildFluidMixins.js";
 import { emitDerivedRadiusCss } from "../radius/emitDerived.js";
+import { emitDerivedSpacingCss } from "../spacing/emitDerived.js";
 import { oklchCssTransform } from "../transforms/oklchColor.js";
 import {
   cssPlatformConfig,
@@ -82,6 +83,53 @@ export async function buildTokens(
   for (const styleName of Object.keys(manifest.styles)) {
     baseFiles.push(...manifest.styles[styleName].map((f) => join(tokensDir, f)));
   }
+
+  // The derived spacing layer's step list is read from the DTCG source rather
+  // than hardcoded, so a step named `sp-<digits>` added or renamed in Figma
+  // flows through automatically, with no code change. Only `sp-<digits>`
+  // qualifies; `size-*` is deliberately excluded — it feeds sizing-touch-min,
+  // an accessibility floor that must not be scaled by a density knob.
+  //
+  // The predicate stays narrow on purpose: the numeric sort just below does
+  // `Number(name.slice(3))`, which yields NaN for anything but digits (e.g.
+  // "sp-0-5") and would corrupt step ordering. Do not "fix" this by widening
+  // the regex — instead, anything prefixed `sp-` that fails it is reported
+  // and skipped below, so the drop is loud rather than silent.
+  const spacingSteps: string[] = [];
+  const dimensionCollection = manifest.collections["primitives-dimension"];
+  if (dimensionCollection) {
+    for (const files of Object.values(dimensionCollection.modes)) {
+      for (const file of files) {
+        const raw = JSON.parse(
+          readFileSync(join(tokensDir, file), "utf-8"),
+        ) as Record<string, unknown>;
+        for (const key of Object.keys(raw)) {
+          if (/^sp-\d+$/.test(key)) {
+            if (!spacingSteps.includes(key)) {
+              spacingSteps.push(key);
+            }
+          } else if (key.startsWith("sp-")) {
+            console.warn(
+              `⚠️  Dropped spacing step "${key}" in ${file}: it starts with "sp-" but is not ` +
+                `"sp-<digits>", so no --space-${key.slice("sp-".length)} will be emitted for it. ` +
+                `Rename it to sp-<digits> in Figma, or update the predicate in ` +
+                `src/build/buildTokens.ts (see the comment above) if the naming convention is ` +
+                `intentionally changing.`,
+            );
+          }
+        }
+      }
+    }
+  } else {
+    console.warn(
+      `⚠️  No "primitives-dimension" collection in the manifest — the derived spacing layer ` +
+        `will not be emitted for this theme. If its dimension primitives live under a ` +
+        `different collection name, update the lookup in src/build/buildTokens.ts.`,
+    );
+  }
+  spacingSteps.sort(
+    (a, b) => Number(a.slice("sp-".length)) - Number(b.slice("sp-".length)),
+  );
 
   mkdirSync(cssOutDir, { recursive: true });
   mkdirSync(scssOutDir, { recursive: true });
@@ -192,6 +240,13 @@ export async function buildTokens(
   // selector covers :root *and* every [data-radius-mode] scope, not just
   // :root.
   cssOutput += "\n" + emitDerivedRadiusCss() + "\n";
+
+  // Derived spacing layer — same substitution-site reasoning as radius above;
+  // see src/spacing/emitDerived.ts. Emitted only when the source actually has
+  // sp-* steps, so a token export without them produces no dead block.
+  if (spacingSteps.length > 0) {
+    cssOutput += "\n" + emitDerivedSpacingCss(spacingSteps) + "\n";
+  }
 
   const cssPath = join(cssOutDir, "tokens.css");
   writeFileSync(cssPath, cssOutput, "utf-8");

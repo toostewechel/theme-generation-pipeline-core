@@ -1,111 +1,111 @@
 {
-  "space-0": {
+  "sp-0": {
     "$type": "dimension",
     "$value": {
       "value": 0,
       "unit": "px"
-    }
+    },
+    "$description": "Test"
   },
-  "space-1": {
+  "sp-2": {
     "$type": "dimension",
     "$value": {
       "value": 2,
       "unit": "px"
-    },
-    "$description": "Some description"
+    }
   },
-  "space-2": {
+  "sp-4": {
     "$type": "dimension",
     "$value": {
       "value": 4,
       "unit": "px"
     }
   },
-  "space-3": {
+  "sp-6": {
     "$type": "dimension",
     "$value": {
       "value": 6,
       "unit": "px"
     }
   },
-  "space-4": {
+  "sp-8": {
     "$type": "dimension",
     "$value": {
       "value": 8,
       "unit": "px"
     }
   },
-  "space-5": {
+  "sp-12": {
     "$type": "dimension",
     "$value": {
       "value": 12,
       "unit": "px"
     }
   },
-  "space-6": {
+  "sp-16": {
     "$type": "dimension",
     "$value": {
       "value": 16,
       "unit": "px"
     }
   },
-  "space-8": {
+  "sp-20": {
     "$type": "dimension",
     "$value": {
       "value": 20,
       "unit": "px"
     }
   },
-  "space-10": {
+  "sp-24": {
     "$type": "dimension",
     "$value": {
       "value": 24,
       "unit": "px"
     }
   },
-  "space-12": {
+  "sp-32": {
     "$type": "dimension",
     "$value": {
       "value": 32,
       "unit": "px"
     }
   },
-  "space-16": {
+  "sp-40": {
     "$type": "dimension",
     "$value": {
       "value": 40,
       "unit": "px"
     }
   },
-  "space-20": {
+  "sp-48": {
     "$type": "dimension",
     "$value": {
       "value": 48,
       "unit": "px"
     }
   },
-  "space-24": {
+  "sp-64": {
     "$type": "dimension",
     "$value": {
       "value": 64,
       "unit": "px"
     }
   },
-  "space-32": {
+  "sp-80": {
     "$type": "dimension",
     "$value": {
       "value": 80,
       "unit": "px"
     }
   },
-  "space-40": {
+  "sp-96": {
     "$type": "dimension",
     "$value": {
       "value": 96,
       "unit": "px"
     }
   },
-  "space-48": {
+  "sp-124": {
     "$type": "dimension",
     "$value": {
       "value": 124,

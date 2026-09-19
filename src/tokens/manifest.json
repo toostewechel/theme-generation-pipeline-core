@@ -73,9 +73,6 @@
   "styles": {
     "typography": [
       "typography.styles.tokens.json"
-    ],
-    "effects": [
-      "effects.styles.tokens.json"
     ]
   }
 }
