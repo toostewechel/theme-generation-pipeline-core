@@ -125,3 +125,53 @@ describe("emitted tokens.css unit contract", () => {
     expect(spaceCount).toBe(spCount);
   });
 });
+
+describe("opacity and animation tokens", () => {
+  it("emits opacity primitives as percentages", () => {
+    const v = vars(css);
+    expect(v["--opacity-0"]).toBe("0%");
+    expect(v["--opacity-16"]).toBe("16%");
+    expect(v["--opacity-100"]).toBe("100%");
+  });
+
+  it("emits durations in whole milliseconds", () => {
+    // Figma exports 0.2s as the float32 round-trip 0.20000000298023224.
+    expect(vars(css)["--duration-fast"]).toBe("200ms");
+  });
+
+  it("emits no duration carrying Figma's float noise", () => {
+    const offenders = [...css.matchAll(/^\s*--[\w-]+:\s*[\d.]{8,}m?s;/gm)].map(
+      (m) => m[0].trim(),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it("emits easing tokens as cubic-bezier() with rounded control points", () => {
+    const v = vars(css);
+    expect(v["--easing-fly-in"]).toBe("cubic-bezier(0.7342, 0.0117, 1, 1)");
+    expect(v["--easing-spring-fly-in"]).toBe(
+      "cubic-bezier(0.34, 1.56, 0.64, 1)",
+    );
+  });
+
+  it("folds the single-mode opacity and animation collections into :root", () => {
+    // Both are single-mode, so they must land in :root with no selector of
+    // their own — a multi-mode declaration would hit the silent-collision
+    // path documented in the README.
+    const root = css.slice(css.indexOf(":root {"), css.indexOf("\n}"));
+    expect(root).toContain("--opacity-16:");
+    expect(root).toContain("--duration-fast:");
+  });
+});
+
+describe("float noise", () => {
+  it("emits no value carrying Figma's float32 round-trip noise", () => {
+    // Figma exports 0.85 as 0.8500000238418579 and 0.2s as
+    // 0.20000000298023224. Every value authored in this repo is exact at four
+    // decimal places, so anything longer is noise that leaked through.
+    const offenders = [...css.matchAll(/^\s*--[\w-]+:[^;]*\.\d{5,}[^;]*;/gm)].map(
+      (m) => m[0].trim(),
+    );
+    expect(offenders).toEqual([]);
+  });
+});

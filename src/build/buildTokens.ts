@@ -8,8 +8,11 @@ import { emitDerivedSpacingCss } from "../spacing/emitDerived.js";
 import { oklchCssTransform } from "../transforms/oklchColor.js";
 import {
   cssPlatformConfig,
+  cubicBezierRoundTransform,
   dimensionEmTransform,
   dimensionUnitlessTransform,
+  durationMsTransform,
+  opacityPercentTransform,
 } from "../transforms/cssPlatform.js";
 
 interface Manifest {
@@ -19,6 +22,9 @@ interface Manifest {
 
 StyleDictionary.registerTransform(dimensionUnitlessTransform);
 StyleDictionary.registerTransform(dimensionEmTransform);
+StyleDictionary.registerTransform(durationMsTransform);
+StyleDictionary.registerTransform(cubicBezierRoundTransform);
+StyleDictionary.registerTransform(opacityPercentTransform);
 StyleDictionary.registerTransform(oklchCssTransform);
 StyleDictionary.registerFormat(typographyMixinsFormat);
 
