@@ -5,6 +5,7 @@ import { join } from "path";
 import { buildTokens } from "./buildTokens.js";
 
 let css: string;
+let mixins: string;
 let outDir: string;
 
 beforeAll(async () => {
@@ -14,6 +15,7 @@ beforeAll(async () => {
     scssOutDir: join(outDir, "scss"),
   });
   css = readFileSync(result.cssPath, "utf-8");
+  mixins = readFileSync(result.typographyMixinsPath, "utf-8");
 }, 60_000);
 
 afterAll(() => {
@@ -146,12 +148,25 @@ describe("opacity and animation tokens", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("emits easing tokens as cubic-bezier() with rounded control points", () => {
-    const v = vars(css);
-    expect(v["--easing-fly-in"]).toBe("cubic-bezier(0.7342, 0.0117, 1, 1)");
-    expect(v["--easing-spring-fly-in"]).toBe(
-      "cubic-bezier(0.34, 1.56, 0.64, 1)",
+  it("emits every cubicBezier token as cubic-bezier() with rounded points", () => {
+    // Read the expected set from the source rather than pinning literals, so
+    // a re-export that retunes a curve or drops one does not fail here — only
+    // a genuine transform regression does.
+    const source = JSON.parse(
+      readFileSync("src/tokens/animation.mode-1.tokens.json", "utf-8"),
+    ) as Record<string, { $type: string; $value: unknown }>;
+    const beziers = Object.entries(source).filter(
+      ([, t]) => t.$type === "cubicBezier",
     );
+    expect(beziers.length).toBeGreaterThan(0);
+
+    const v = vars(css);
+    for (const [name, token] of beziers) {
+      const points = (token.$value as number[]).map(
+        (n) => Math.round(n * 10_000) / 10_000,
+      );
+      expect(v[`--${name}`]).toBe(`cubic-bezier(${points.join(", ")})`);
+    }
   });
 
   it("folds the single-mode opacity and animation collections into :root", () => {
@@ -173,5 +188,40 @@ describe("float noise", () => {
       (m) => m[0].trim(),
     );
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("composite typography tokens", () => {
+  /** The composite token names, read from the source rather than hardcoded. */
+  const compositeNames = Object.keys(
+    JSON.parse(
+      readFileSync("src/tokens/typography.styles.tokens.json", "utf-8"),
+    ) as Record<string, unknown>,
+  );
+
+  it("emits no composite typography shorthand into the stylesheet", () => {
+    // These duplicate typography-mixins.scss exactly, so they are dead weight
+    // in the stylesheet. The per-property customs below are the real API.
+    const offenders = [
+      ...css.matchAll(/^\s*(--[\w-]+):\s*var\(--typography-[\w-]+-font-weight\)/gm),
+    ].map((m) => m[1]);
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the per-property customs the mixins reference", () => {
+    // Dropping the shorthands must not drop what they were built from —
+    // removing these would break every generated mixin.
+    const v = vars(css);
+    expect(v["--typography-body-lg-font-size"]).toBeDefined();
+    expect(v["--typography-body-lg-font-weight"]).toBeDefined();
+    expect(v["--typography-body-lg-line-height"]).toBeDefined();
+    expect(v["--typography-body-lg-font-family"]).toBeDefined();
+  });
+
+  it("still generates a mixin for every composite typography token", () => {
+    expect(compositeNames.length).toBeGreaterThan(0);
+    for (const name of compositeNames) {
+      expect(mixins).toContain(`@mixin ${name} {`);
+    }
   });
 });

@@ -69,6 +69,15 @@ describe("cssPlatformConfig transform order", () => {
     expect(transforms[transforms.length - 1]).toBe("dimension/unitless");
   });
 
+  it("runs opacity/percent before dimension/css", () => {
+    // opacity-* can arrive as $type: dimension/px, and dimension/css would
+    // convert it to rem before the percentage transform ever saw it.
+    const { transforms } = cssPlatformConfig;
+    expect(transforms.indexOf("opacity/percent")).toBeLessThan(
+      transforms.indexOf("dimension/css"),
+    );
+  });
+
   it("runs cubicBezier/round before cubicBezier/css", () => {
     // cubicBezier/css formats the array into cubic-bezier(...); rounding has
     // to happen while the value is still an array of numbers.
@@ -214,6 +223,27 @@ describe("opacity output", () => {
     expect(vars["--opacity-0"]).toBe("0%");
     expect(vars["--opacity-16"]).toBe("16%");
     expect(vars["--opacity-100"]).toBe("100%");
+  });
+
+  it("emits opacity-* authored as dimension/px as percentages too", async () => {
+    // Figma picks $type from a variable's scopes: a FLOAT scoped to sizing
+    // exports as `dimension` with a px unit rather than `number`. The value is
+    // still 0-100 opacity, so the name is what decides, not the type — and
+    // without this, dimension/css would convert 16px to 1rem.
+    const vars = await transformTokens({
+      "opacity-0": px(0),
+      "opacity-16": px(16),
+      "opacity-100": px(100),
+    });
+    expect(vars["--opacity-0"]).toBe("0%");
+    expect(vars["--opacity-16"]).toBe("16%");
+    expect(vars["--opacity-100"]).toBe("100%");
+  });
+
+  it("leaves dimension tokens that are not opacity-* in rem", async () => {
+    // The widened filter must not swallow real lengths.
+    const vars = await transformTokens({ "size-4": px(16) });
+    expect(vars["--size-4"]).toBe("1rem");
   });
 
   it("leaves number tokens that are not opacity-* as bare numbers", async () => {

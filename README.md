@@ -131,6 +131,24 @@ Per the same substitution-site rule detailed under [Radius](#radius) and
 against wherever it is *declared*; overriding `--size-6` deeper in the tree
 has no effect on an ancestor's already-substituted `--sizing-icon-md`.
 
+**Composite typography tokens are excluded from every CSS pass.** A
+`$type: typography` token would otherwise emit through
+`typography/css/shorthand` as a `font` shorthand assembled from the same
+per-property customs the mixins already reference:
+
+```css
+/* no longer emitted */
+--body-lg: var(--typography-body-lg-font-weight) var(--typography-body-lg-font-size)/…;
+```
+
+That is an exact duplicate of `@mixin body-lg`, so the stylesheet carried 31
+dead declarations. The mixins are the API; the per-property customs
+(`--typography-body-lg-font-size`, …) are what they reference and are still
+emitted. The filter lives in the `emit()` helper in
+`src/build/buildTokens.ts`, not at each call site, so a pass added later cannot
+reintroduce them — `typography/css/shorthand` itself must stay in the transform
+list, because the SCSS pass still needs it.
+
 After the CSS passes, two SCSS files are generated:
 
 - A Style Dictionary pass over the base files using the custom
@@ -145,7 +163,7 @@ Three files come out:
 
 | File | Contents |
 |---|---|
-| `dist/css/tokens.css` | All custom properties: `:root` first, then one block per declared mode, then the derived radius block, then the derived spacing block. Which mode blocks appear depends entirely on what the manifest declares |
+| `dist/css/tokens.css` | Every custom property except the composite typography shorthands (see below): `:root` first, then one block per declared mode, then the derived radius block, then the derived spacing block. Which mode blocks appear depends entirely on what the manifest declares |
 | `dist/scss/typography-mixins.scss` | One `@mixin` per composite typography token, all values `var()` references |
 | `dist/scss/fluid-typography-mixins.scss` | The same mixins with `clamp()` font-sizes and unitless line-heights |
 

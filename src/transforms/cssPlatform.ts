@@ -110,29 +110,43 @@ export const durationMsTransform = {
 /**
  * Opacity as a percentage.
  *
- * Figma's opacity primitives are `$type: number` authored 0-100, which would
- * otherwise emit as a bare `16` — not a valid CSS opacity. 0-100 maps 1:1 onto
- * percent, so no arithmetic is needed. Percent (rather than a 0-1 decimal) is
- * what `color-mix()` requires, and it is equally valid in the `opacity`
- * property and in an alpha slot: `rgb(from X r g b / var(--opacity-16))`.
+ * Figma's opacity primitives are authored 0-100, which would otherwise emit as
+ * a bare `16` — not a valid CSS opacity. 0-100 maps 1:1 onto percent, so no
+ * arithmetic is needed. Percent (rather than a 0-1 decimal) is what
+ * `color-mix()` requires, and it is equally valid in the `opacity` property and
+ * in an alpha slot: `rgb(from X r g b / var(--opacity-16))`.
  *
- * Keyed on the `opacity-` name prefix, following the `sp-<digits>` precedent in
- * src/build/buildTokens.ts. A `number` token without that prefix is left as a
- * bare number, which is itself valid CSS — nothing is dropped, so nothing is
- * reported.
+ * **The name decides, not `$type`.** Figma picks a variable's `$type` from its
+ * scopes: a FLOAT scoped to sizing exports as `dimension` with a px unit, the
+ * same collection otherwise exports as `number`. Both shapes have been seen
+ * from the same Figma file, so matching on `$type` alone silently regresses
+ * whenever a scope drifts — an opacity that exports as a dimension would run
+ * through `dimension/css` and ship as `--opacity-16: 1rem`. The `opacity-`
+ * prefix is the contract instead, following the `sp-<digits>` precedent in
+ * src/build/buildTokens.ts.
+ *
+ * Must run BEFORE `dimension/css` for that reason. A token *without* the
+ * prefix is untouched: a `number` stays a bare number (valid CSS) and a
+ * `dimension` stays a real length.
  */
 export const opacityPercentTransform = {
   name: "opacity/percent",
   type: "value" as const,
   transitive: true,
   filter: (token: any) =>
-    token.$type === "number" &&
+    (token.$type === "number" || token.$type === "dimension") &&
     String(token.path?.[0] ?? token.name ?? "").startsWith("opacity-"),
   transform: (token: any) => {
-    // parseFloat also re-reads an already-transformed "16%" reaching this
-    // transform through a resolved reference, keeping it idempotent.
-    const value = parseFloat(String(token.$value));
-    if (!Number.isFinite(value)) return token.$value;
+    const source = token.$value;
+    // A dimension arrives as { value, unit }; a number as a bare value; a
+    // resolved reference as an already-transformed "16%". parseFloat handles
+    // the last of those, which keeps the transform idempotent.
+    const raw =
+      typeof source === "object" && source !== null && source.value !== undefined
+        ? source.value
+        : source;
+    const value = parseFloat(String(raw));
+    if (!Number.isFinite(value)) return source;
     return `${value}%`;
   },
 };
@@ -176,6 +190,9 @@ export const cubicBezierRoundTransform = {
  *    through untouched.
  * 4. `cubicBezier/round` must run BEFORE `cubicBezier/css`, which turns the
  *    control-point array into a string.
+ * 5. `opacity/percent` must run BEFORE `dimension/css` — Figma sometimes
+ *    exports the opacity scale as `dimension`/px, which `dimension/css` would
+ *    convert to rem.
  *
  * `dimension/css` (style-dictionary-utils) is what performs the px -> rem
  * conversion, honouring `outputUnit` and `basePxFontSize` below.
@@ -205,12 +222,14 @@ export const cssPlatformConfig = {
     "typography/css/shorthand",
     "transition/css/shorthand",
     "oklch/css",
+    // Must run BEFORE dimension/css: an opacity-* token exported as a
+    // dimension would otherwise be converted from px to rem.
+    "opacity/percent",
     "dimension/css",
     // Must run BEFORE duration/css, which preserves the authored unit verbatim
     // and short-circuits on string input.
     "duration/ms",
     "duration/css",
-    "opacity/percent",
     "shadow/css",
     "strokeStyle/css",
     "transition/css",
