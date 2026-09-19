@@ -131,6 +131,24 @@ Per the same substitution-site rule detailed under [Radius](#radius) and
 against wherever it is *declared*; overriding `--size-6` deeper in the tree
 has no effect on an ancestor's already-substituted `--sizing-icon-md`.
 
+**Composite typography tokens are excluded from every CSS pass.** A
+`$type: typography` token would otherwise emit through
+`typography/css/shorthand` as a `font` shorthand assembled from the same
+per-property customs the mixins already reference:
+
+```css
+/* no longer emitted */
+--body-lg: var(--typography-body-lg-font-weight) var(--typography-body-lg-font-size)/…;
+```
+
+That is an exact duplicate of `@mixin body-lg`, so the stylesheet carried 31
+dead declarations. The mixins are the API; the per-property customs
+(`--typography-body-lg-font-size`, …) are what they reference and are still
+emitted. The filter lives in the `emit()` helper in
+`src/build/buildTokens.ts`, not at each call site, so a pass added later cannot
+reintroduce them — `typography/css/shorthand` itself must stay in the transform
+list, because the SCSS pass still needs it.
+
 After the CSS passes, two SCSS files are generated:
 
 - A Style Dictionary pass over the base files using the custom
@@ -145,7 +163,7 @@ Three files come out:
 
 | File | Contents |
 |---|---|
-| `dist/css/tokens.css` | All custom properties: `:root` first, then one block per declared mode, then the derived radius block, then the derived spacing block. Which mode blocks appear depends entirely on what the manifest declares |
+| `dist/css/tokens.css` | Every custom property except the composite typography shorthands (see below): `:root` first, then one block per declared mode, then the derived radius block, then the derived spacing block. Which mode blocks appear depends entirely on what the manifest declares |
 | `dist/scss/typography-mixins.scss` | One `@mixin` per composite typography token, all values `var()` references |
 | `dist/scss/fluid-typography-mixins.scss` | The same mixins with `clamp()` font-sizes and unitless line-heights |
 
@@ -171,6 +189,8 @@ flat maps of token name to token; there are no nested groups.
 | `dimension` | `mode-1` | Semantic sizing (`sizing-control-md`, `sizing-icon-sm`, …) |
 | `primitives-radius` | `mode-1` | `radius-unit`, `radius-scale-*`, `radius-cap-*`, `radius-none`, `radius-full` |
 | `radius` | `sharp`, `default`, `rounded`, `pill` | One `radius-intensity` value per mode |
+| `primitives-opacity` | `mode-1` | The `opacity-*` scale, authored 0–100 |
+| `animation` | `mode-1` | `duration-*` and `easing-*` — motion durations and timing curves |
 
 The manifest also has a `styles` block, always folded into the base pass:
 `typography.styles.tokens.json` (composite `$type: typography` tokens, the
@@ -216,7 +236,9 @@ The rule is absolute, including where it looks odd: `radius-full` is authored
 as `9999px` and ships as `624.9375rem`.
 
 **Transform order in `src/transforms/cssPlatform.ts` is load-bearing.** `dimension/em`
-must run before `dimension/css`; `dimension/unitless` must run last.
+must run before `dimension/css`; `duration/ms` must run before `duration/css`;
+`cubicBezier/round` must run before `cubicBezier/css`; `dimension/unitless` must
+run last.
 
 **Never add Style Dictionary's built-in `size/rem` transform.** Despite the name it
 does not convert px to rem — it reads a *unitless* number as a rem count, and for a
@@ -225,7 +247,84 @@ as a string. `dimension/css` short-circuits on string input, so adding `size/rem
 silently disables px→rem conversion for every dimension token in the repo, with no
 error: no warning, no failed build, just an entire stylesheet quietly reverted to px.
 It cost a full debugging session to find. `src/transforms/cssPlatform.test.ts` now
-guards the transform list against it, alongside the two ordering rules.
+guards the transform list against it, alongside the four ordering rules.
+
+## Opacity and animation
+
+Three DTCG types beyond `color` and `dimension` reach CSS, each through its own
+rule. Unlike the dimension unit contract above, none of them is keyed on
+`$description` — the token's `$type` and name carry enough information already.
+
+| `$type` | Authored as | Emitted as | Transform |
+|---|---|---|---|
+| `number`, name starting `opacity-` | `16` | `16%` | `opacity/percent` |
+| `number`, any other name | `400` | `400` | *(none — a bare number is valid CSS)* |
+| `duration` | `{ value: 0.2, unit: "s" }` | `200ms` | `duration/ms` |
+| `cubicBezier` | `[0.34, 1.56, 0.64, 1]` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | `cubicBezier/css` (built in) |
+
+**Opacity emits as a percentage, not a 0–1 decimal.** Figma authors the scale
+0–100, which maps 1:1 onto percent with no arithmetic. Percent is what
+`color-mix()` requires, and it is equally valid in the `opacity` property and in
+an alpha slot, so one form covers every call site:
+
+```css
+opacity: var(--opacity-64);
+background: rgb(from var(--color-brand-600) r g b / var(--opacity-16));
+border-color: color-mix(in oklab, var(--color-fg-default) var(--opacity-24), transparent);
+```
+
+The `opacity-` name prefix is the contract, following the `sp-<digits>`
+precedent in `src/build/buildTokens.ts`. A `number` token without it is left as
+a bare number — that is a valid emission, not a drop, so unlike the `sp-` case
+nothing is reported.
+
+**Durations are normalised to whole milliseconds.** Figma authors them in
+seconds and exports float32 round-trips: `0.2s` ships as
+`0.20000000298023224`. `duration/css` from style-dictionary-utils preserves the
+authored value and unit verbatim, so that noise would reach the stylesheet.
+`duration/ms` converts and rounds first, which makes the noise structurally
+impossible — and ms is the conventional unit for UI motion. It must run *before*
+`duration/css`, which short-circuits on string input, exactly as `dimension/em`
+does with `dimension/css`.
+
+**Figma's spring descriptor is deliberately ignored.** A spring variable exports
+as a `cubicBezier` plus
+`$extensions["com.figma.spring"]`, e.g. `{ "bounce": 0.25 }`. CSS has no native
+spring easing, and Figma has already flattened the spring into the bezier — the
+`1.56` control point in `easing-spring-fly-in` is the overshoot. The extension is
+kept in the token JSON for round-tripping and read by nothing. Reproducing bounce
+more faithfully would mean sampling the spring into a CSS `linear()` easing; that
+is a deliberate non-goal, not an oversight.
+
+### Float noise
+
+Figma stores numbers as float32 and serialises them back as float64, so values
+arrive with a tail of garbage digits: an authored `0.85` exports as
+`0.8500000238418579`, `0.2s` as `0.20000000298023224`, and a bezier control
+point of `0.7342` as `0.7341729402542114`. None of it is meaningful, and all of
+it used to reach the stylesheet.
+
+Three transforms strip it, each at the only point where the value is still a
+number:
+
+| Transform | Rule |
+|---|---|
+| `duration/ms` | Rounds to a whole millisecond |
+| `cubicBezier/round` | Rounds each control point to 4 decimal places |
+| `dimension/unitless` | Rounds the bare number to 4 decimal places |
+
+Four decimal places is not arbitrary: every unitless value authored in this repo
+(`0.5`, `0.75`, `1`, `1.25`, `1.5`, `0.85`, `0.92`, `1.05`, `1.1`, `9999`)
+survives it exactly, so the rounding removes noise and nothing else. A build-time
+gate in `src/build/buildTokens.test.ts` fails if any emitted custom property
+carries five or more decimal places — widen the rounding, don't widen the gate,
+if a token ever legitimately needs more precision.
+
+**The `animation` and `primitives-opacity` collections must stay single-mode.**
+Both fall to the "anything else" row of the collection table above, so a single
+mode folds into `:root` with no code change. Giving either a second mode would
+hit silent-collision failure #3 — both files would load into the same pass and
+the last one loaded would win.
 
 ## Radius
 

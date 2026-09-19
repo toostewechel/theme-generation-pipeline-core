@@ -5,6 +5,7 @@ import { join } from "path";
 import { buildTokens } from "./buildTokens.js";
 
 let css: string;
+let mixins: string;
 let outDir: string;
 
 beforeAll(async () => {
@@ -14,6 +15,7 @@ beforeAll(async () => {
     scssOutDir: join(outDir, "scss"),
   });
   css = readFileSync(result.cssPath, "utf-8");
+  mixins = readFileSync(result.typographyMixinsPath, "utf-8");
 }, 60_000);
 
 afterAll(() => {
@@ -123,5 +125,103 @@ describe("emitted tokens.css unit contract", () => {
     const spCount = [...css.matchAll(/^\s*--sp-\d+:/gm)].length;
     const spaceCount = [...css.matchAll(/^\s*--space-\d+:/gm)].length;
     expect(spaceCount).toBe(spCount);
+  });
+});
+
+describe("opacity and animation tokens", () => {
+  it("emits opacity primitives as percentages", () => {
+    const v = vars(css);
+    expect(v["--opacity-0"]).toBe("0%");
+    expect(v["--opacity-16"]).toBe("16%");
+    expect(v["--opacity-100"]).toBe("100%");
+  });
+
+  it("emits durations in whole milliseconds", () => {
+    // Figma exports 0.2s as the float32 round-trip 0.20000000298023224.
+    expect(vars(css)["--duration-fast"]).toBe("200ms");
+  });
+
+  it("emits no duration carrying Figma's float noise", () => {
+    const offenders = [...css.matchAll(/^\s*--[\w-]+:\s*[\d.]{8,}m?s;/gm)].map(
+      (m) => m[0].trim(),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it("emits every cubicBezier token as cubic-bezier() with rounded points", () => {
+    // Read the expected set from the source rather than pinning literals, so
+    // a re-export that retunes a curve or drops one does not fail here — only
+    // a genuine transform regression does.
+    const source = JSON.parse(
+      readFileSync("src/tokens/animation.mode-1.tokens.json", "utf-8"),
+    ) as Record<string, { $type: string; $value: unknown }>;
+    const beziers = Object.entries(source).filter(
+      ([, t]) => t.$type === "cubicBezier",
+    );
+    expect(beziers.length).toBeGreaterThan(0);
+
+    const v = vars(css);
+    for (const [name, token] of beziers) {
+      const points = (token.$value as number[]).map(
+        (n) => Math.round(n * 10_000) / 10_000,
+      );
+      expect(v[`--${name}`]).toBe(`cubic-bezier(${points.join(", ")})`);
+    }
+  });
+
+  it("folds the single-mode opacity and animation collections into :root", () => {
+    // Both are single-mode, so they must land in :root with no selector of
+    // their own — a multi-mode declaration would hit the silent-collision
+    // path documented in the README.
+    const root = css.slice(css.indexOf(":root {"), css.indexOf("\n}"));
+    expect(root).toContain("--opacity-16:");
+    expect(root).toContain("--duration-fast:");
+  });
+});
+
+describe("float noise", () => {
+  it("emits no value carrying Figma's float32 round-trip noise", () => {
+    // Figma exports 0.85 as 0.8500000238418579 and 0.2s as
+    // 0.20000000298023224. Every value authored in this repo is exact at four
+    // decimal places, so anything longer is noise that leaked through.
+    const offenders = [...css.matchAll(/^\s*--[\w-]+:[^;]*\.\d{5,}[^;]*;/gm)].map(
+      (m) => m[0].trim(),
+    );
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("composite typography tokens", () => {
+  /** The composite token names, read from the source rather than hardcoded. */
+  const compositeNames = Object.keys(
+    JSON.parse(
+      readFileSync("src/tokens/typography.styles.tokens.json", "utf-8"),
+    ) as Record<string, unknown>,
+  );
+
+  it("emits no composite typography shorthand into the stylesheet", () => {
+    // These duplicate typography-mixins.scss exactly, so they are dead weight
+    // in the stylesheet. The per-property customs below are the real API.
+    const offenders = [
+      ...css.matchAll(/^\s*(--[\w-]+):\s*var\(--typography-[\w-]+-font-weight\)/gm),
+    ].map((m) => m[1]);
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the per-property customs the mixins reference", () => {
+    // Dropping the shorthands must not drop what they were built from —
+    // removing these would break every generated mixin.
+    const v = vars(css);
+    expect(v["--typography-body-lg-font-size"]).toBeDefined();
+    expect(v["--typography-body-lg-font-weight"]).toBeDefined();
+    expect(v["--typography-body-lg-line-height"]).toBeDefined();
+    expect(v["--typography-body-lg-font-family"]).toBeDefined();
+  });
+
+  it("still generates a mixin for every composite typography token", () => {
+    expect(compositeNames.length).toBeGreaterThan(0);
+    for (const name of compositeNames) {
+      expect(mixins).toContain(`@mixin ${name} {`);
+    }
   });
 });

@@ -8,8 +8,11 @@ import { emitDerivedSpacingCss } from "../spacing/emitDerived.js";
 import { oklchCssTransform } from "../transforms/oklchColor.js";
 import {
   cssPlatformConfig,
+  cubicBezierRoundTransform,
   dimensionEmTransform,
   dimensionUnitlessTransform,
+  durationMsTransform,
+  opacityPercentTransform,
 } from "../transforms/cssPlatform.js";
 
 interface Manifest {
@@ -19,6 +22,9 @@ interface Manifest {
 
 StyleDictionary.registerTransform(dimensionUnitlessTransform);
 StyleDictionary.registerTransform(dimensionEmTransform);
+StyleDictionary.registerTransform(durationMsTransform);
+StyleDictionary.registerTransform(cubicBezierRoundTransform);
+StyleDictionary.registerTransform(opacityPercentTransform);
 StyleDictionary.registerTransform(oklchCssTransform);
 StyleDictionary.registerFormat(typographyMixinsFormat);
 
@@ -138,13 +144,26 @@ export async function buildTokens(
   let cssOutput =
     "/**\n * Do not edit directly, this file was auto-generated.\n */\n\n";
 
-  /** Build one Style Dictionary pass and append its CSS to the accumulator. */
+  /**
+   * Build one Style Dictionary pass and append its CSS to the accumulator.
+   *
+   * Composite `$type: typography` tokens are excluded from every CSS pass.
+   * `typography/css/shorthand` renders them as a `font` shorthand built from
+   * the same per-property customs the SCSS mixins already reference, so in the
+   * stylesheet they are an exact duplicate of `typography-mixins.scss` — the
+   * mixins are the API, these were dead weight. The exclusion lives here
+   * rather than at each call site so a pass added later cannot reintroduce
+   * them. The SCSS pass is a separate StyleDictionary instance and filters the
+   * other way, so the mixins are unaffected.
+   */
   async function emit(
     source: string[],
     destination: string,
     selector: string,
     filter?: (token: any) => boolean,
   ): Promise<void> {
+    const cssFilter = (token: any) =>
+      token.$type !== "typography" && (filter ? filter(token) : true);
     const sd = new StyleDictionary({
       source,
       log: { verbosity: "silent" },
@@ -156,7 +175,7 @@ export async function buildTokens(
             {
               destination,
               format: "css/variables",
-              ...(filter ? { filter } : {}),
+              filter: cssFilter,
               options: { outputReferences: true, selector, formatting, sort: naturalSort },
             },
           ],

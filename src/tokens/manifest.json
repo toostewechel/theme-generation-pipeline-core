@@ -68,6 +68,20 @@
           "radius.pill.tokens.json"
         ]
       }
+    },
+    "primitives-opacity": {
+      "modes": {
+        "mode-1": [
+          "primitives-opacity.mode-1.tokens.json"
+        ]
+      }
+    },
+    "animation": {
+      "modes": {
+        "mode-1": [
+          "animation.mode-1.tokens.json"
+        ]
+      }
     }
   },
   "styles": {

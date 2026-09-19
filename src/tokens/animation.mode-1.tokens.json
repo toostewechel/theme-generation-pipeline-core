@@ -1,0 +1,18 @@
+{
+  "duration-fast": {
+    "$type": "duration",
+    "$value": {
+      "value": 0.20000000298023224,
+      "unit": "s"
+    }
+  },
+  "easing-fly-in": {
+    "$type": "cubicBezier",
+    "$value": [
+      0.5,
+      0,
+      0.5,
+      1
+    ]
+  }
+}
